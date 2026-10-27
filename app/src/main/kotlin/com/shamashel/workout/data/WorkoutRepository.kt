@@ -36,7 +36,10 @@ private val backupJson = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
 const val BACKUP_SCHEMA_VERSION = 1
 
-class WorkoutRepository(private val db: WorkoutDatabase) {
+class WorkoutRepository(
+    private val db: WorkoutDatabase,
+    private val onDataChanged: () -> Unit = {},
+) {
     private val dao = db.dao()
     private val json = backupJson
     private val dateFormat = DateTimeFormatter.ofPattern("MMM d", Locale.US)
@@ -159,9 +162,11 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun finishDay(day: Char, durationMin: Int, readiness: Int?): FinishOutcome {
         val today = LocalDate.now()
-        return db.withTransaction {
+        val outcome = db.withTransaction {
             finishInside(day, today, durationMin, readiness)
         }
+        onDataChanged()
+        return outcome
     }
 
     private suspend fun finishInside(day: Char, today: LocalDate, durationMin: Int, readiness: Int?): FinishOutcome {
@@ -449,6 +454,7 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun saveSettings(entity: SettingsEntity) {
         dao.saveSettings(entity)
+        onDataChanged()
     }
 
     suspend fun phases(): List<YearOutline> {

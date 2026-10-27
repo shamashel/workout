@@ -85,7 +85,7 @@ Android Auto Backup stores this app's database in the Google account's device ba
 
 On the phone, open Settings → Google → All services → Backup, or Settings → System → Backup. Turn on Backup by Google One (some phones say Back up to Google Drive). A Google account has to be listed. Trades Prep is included on its own. There is no switch for it inside the app. Open the app once after installing it. Android skips an app that is force-stopped.
 
-The phone copies the data when it is idle, charging, and on Wi-Fi. From a computer you can ask for it with `adb shell bmgr backupnow com.shamashel.workout`. The per-app cap is about 25 MB.
+Finishing a workout or changing a setting calls `BackupManager.dataChanged()`, so Android schedules the copy without another tap. The phone still writes it when it is idle, charging, and on Wi-Fi. From a computer you can ask for it with `adb shell bmgr backupnow com.shamashel.workout`. The per-app cap is about 25 MB. Settings shows an Automatic backup row with the same reminder: Settings > Google > Backup has to be on.
 
 The backup includes the Room database (the app checkpoints the `-wal` file first) and shared preferences. It does not include Health Connect sessions. Those stay in Health Connect. A sideloaded install is restored only when that Google backup actually exists and auto-restore is on.
 

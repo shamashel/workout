@@ -198,6 +198,32 @@ class BackupRoundTripTest {
     }
 
     @Test
+    fun finishedSessionAndSettings_requestABackup() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val database = WorkoutDatabase.create(context, "backup-signal.db")
+        var calls = 0
+        try {
+            val repository = WorkoutRepository(database) { calls += 1 }
+            repository.bootstrap()
+            assertEquals(0, calls)
+            repository.saveSettings(repository.settingsEntity().copy(allowSkipDeload = true))
+            assertEquals(1, calls)
+            repository.saveDraft(
+                slotId = "A1",
+                sets = listOf(DraftSet(50.0, 10, 3)),
+                pain = 0,
+                note = "one set",
+                posture = false,
+            )
+            assertEquals(1, calls)
+            repository.finishDay('A', 30, 4)
+            assertEquals(2, calls)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun backupFileName_usesTheMinute() {
         assertEquals(
             "trades-prep-2026-10-27-1405.json",

@@ -279,9 +279,14 @@ fun SettingsScreen(
         )
         SectionCard(
             title = "Backup",
-            helper = "Back up to Google Drive writes one timestamped JSON file. The phone's file picker opens, and you choose Google Drive or a folder on this phone. The app only writes the file you pick. Device backup is separate: Settings, Google, Backup. Turn on Backup by Google One with a Google account on the phone, and open this app once so Android includes it. That copy is not a file you can open in Drive.",
+            helper = "The buttons below are a file you can see. The picker can save it to Google Drive or to this phone. That file is separate from automatic backup.",
             onReset = null,
         ) {
+            Text("Automatic backup", fontWeight = FontWeight.SemiBold)
+            Text(
+                "On. Workout history, settings, and progression are included. Android stores them in this Google account's device backup on Drive. Check that Settings > Google > Backup is on.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Button(
                 onClick = { exportLauncher.launch(backupFileName()) },
                 modifier = Modifier.fillMaxWidth(),

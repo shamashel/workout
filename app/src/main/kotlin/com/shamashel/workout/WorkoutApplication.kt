@@ -1,6 +1,7 @@
 package com.shamashel.workout
 
 import android.app.Application
+import android.app.backup.BackupManager
 import com.shamashel.workout.data.WorkoutDatabase
 import com.shamashel.workout.data.WorkoutRepository
 import com.shamashel.workout.health.HealthWriter
@@ -18,7 +19,7 @@ class WorkoutApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         database = WorkoutDatabase.create(this)
-        repository = WorkoutRepository(database)
+        repository = WorkoutRepository(database) { BackupManager(this).dataChanged() }
         health = HealthWriter(this)
     }
 }
