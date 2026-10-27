@@ -16,10 +16,16 @@ import com.shamashel.workout.data.StartingSlot
 import com.shamashel.workout.data.TodaySlot
 import com.shamashel.workout.data.WorkoutRepository
 import com.shamashel.workout.engine.YearOutline
+import com.shamashel.workout.engine.formatLb
+import com.shamashel.workout.engine.formatReps
 import com.shamashel.workout.health.HealthAvailability
 import com.shamashel.workout.health.HealthWriter
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
+import java.util.Locale
+import kotlin.math.abs
 
 data class SetField(val weight: String, val reps: String, val rir: Int)
 
@@ -36,6 +42,8 @@ class WorkoutViewModel(
     private val repository: WorkoutRepository,
     private val health: HealthWriter,
 ) : ViewModel() {
+    private val settingsMutex = Mutex()
+    private var settingsGeneration = 0
     var home by mutableStateOf<HomeSnapshot?>(null)
     var selectedDay by mutableStateOf<Char?>(null)
     var editor by mutableStateOf<EditorUi?>(null)
@@ -48,6 +56,7 @@ class WorkoutViewModel(
     var message by mutableStateOf<String?>(null)
     var checkInOffer by mutableStateOf(false)
     var healthStatus by mutableStateOf(HealthAvailability.UNAVAILABLE)
+    var healthGranted by mutableStateOf(false)
     var busy by mutableStateOf(false)
 
     init {
@@ -65,6 +74,7 @@ class WorkoutViewModel(
         home = repository.home(selectedDay)
         settings = repository.settingsEntity()
         healthStatus = health.availability()
+        healthGranted = health.hasWritePermission()
     }
 
     fun selectDay(day: Char) {
@@ -157,8 +167,8 @@ class WorkoutViewModel(
                 rows = summary?.rows.orEmpty().map { row ->
                     if (row.slotId == slotId) {
                         row.copy(
-                            weightLabel = com.shamashel.workout.engine.formatLb(weight),
-                            repsLabel = com.shamashel.workout.engine.formatReps(reps),
+                            weightLabel = formatLb(weight),
+                            repsLabel = formatReps(reps),
                             suggestedWeight = weight,
                             suggestedReps = reps,
                             reason = row.reason + " Overridden.",
@@ -193,24 +203,28 @@ class WorkoutViewModel(
             settings = repository.settingsEntity()
             phases = repository.phases()
             healthStatus = health.availability()
+            healthGranted = health.hasWritePermission()
         }
     }
 
-    fun saveSettings(entity: SettingsEntity) {
+    fun saveSettings(entity: SettingsEntity, note: String? = null) {
+        val generation = ++settingsGeneration
+        settings = entity
         viewModelScope.launch {
-            repository.saveSettings(entity)
-            settings = entity
-            message = "Settings saved."
-            refresh()
+            settingsMutex.withLock {
+                repository.saveSettings(entity)
+                if (generation != settingsGeneration) return@withLock
+                home = repository.home(selectedDay)
+                if (note != null) message = note
+            }
         }
     }
 
-    fun setMicro(enabled: Boolean) {
-        viewModelScope.launch {
-            repository.setMicroPlates(enabled)
-            settings = repository.settingsEntity()
-            refresh()
-        }
+    fun onHealthPermission(granted: Boolean) {
+        healthGranted = granted
+        if (!granted) return
+        val current = settings ?: return
+        saveSettings(current.copy(writeHealthConnect = true), "Health Connect allowed.")
     }
 
     fun loadStarting() {
@@ -294,7 +308,7 @@ class WorkoutViewModel(
         message = null
     }
 
-    fun healthWriter(): com.shamashel.workout.health.HealthWriter = health
+    fun healthWriter(): HealthWriter = health
 
     private fun parseSets(current: EditorUi): List<DraftSet>? {
         val parsed = current.sets.map { set ->
@@ -326,9 +340,9 @@ class WorkoutViewModel(
 }
 
 private fun trimWeight(weight: Double): String {
-    return if (kotlin.math.abs(weight - weight.toInt()) < 0.001) {
+    return if (abs(weight - weight.toInt()) < 0.001) {
         weight.toInt().toString()
     } else {
-        String.format(java.util.Locale.US, "%.1f", weight)
+        String.format(Locale.US, "%.1f", weight)
     }
 }

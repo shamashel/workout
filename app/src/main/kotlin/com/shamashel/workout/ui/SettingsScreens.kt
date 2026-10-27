@@ -1,7 +1,5 @@
 package com.shamashel.workout.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,145 +13,19 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
-import com.shamashel.workout.data.SAFETY_LINE
-import com.shamashel.workout.data.SettingsEntity
 import com.shamashel.workout.data.StartingSlot
 import com.shamashel.workout.engine.YearOutline
-import com.shamashel.workout.health.HealthAvailability
-import com.shamashel.workout.health.HealthWriter
-import kotlinx.coroutines.launch
-
-@Composable
-fun SettingsScreen(
-    settings: SettingsEntity,
-    healthStatus: HealthAvailability,
-    health: HealthWriter,
-    onMicro: (Boolean) -> Unit,
-    onSave: (SettingsEntity) -> Unit,
-    onExport: suspend () -> String,
-    onImport: (String) -> Unit,
-    onYears: () -> Unit,
-    onStarting: () -> Unit,
-    onSwim: () -> Unit,
-    onCheckIn: () -> Unit,
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var db by remember(settings) { mutableStateOf(settings.dbIncrement.toString()) }
-    var bar by remember(settings) { mutableStateOf(settings.barbellIncrement.toString()) }
-    var lat by remember(settings) { mutableStateOf(settings.latIncrement.toString()) }
-    var dbWeights by remember(settings) { mutableStateOf(settings.availableDb) }
-    var barWeights by remember(settings) { mutableStateOf(settings.availableBarbell) }
-    var latWeights by remember(settings) { mutableStateOf(settings.availableLat) }
-    var skip by remember(settings) { mutableStateOf(settings.allowSkipDeload) }
-    var writeHealth by remember(settings) { mutableStateOf(settings.writeHealthConnect) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        PermissionController.createRequestPermissionResultContract(),
-    ) { granted ->
-        writeHealth = granted.contains(health.writePermission())
-    }
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val raw = onExport()
-            context.contentResolver.openOutputStream(uri)?.use { it.write(raw.toByteArray()) }
-        }
-    }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText().orEmpty()
-        onImport(raw)
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Micro-plates (2.5 lb)")
-            Switch(checked = settings.microPlates, onCheckedChange = onMicro)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Allow skipping a deload")
-            Switch(checked = skip, onCheckedChange = { skip = it })
-        }
-        NumberField("Dumbbell increment, lb", db) { db = it }
-        NumberField("Barbell increment, lb total", bar) { bar = it }
-        NumberField("Lat pulldown step, lb", lat) { lat = it }
-        OutlinedTextField(dbWeights, { dbWeights = it }, label = { Text("Available dumbbells") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(barWeights, { barWeights = it }, label = { Text("Available barbell weights") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(latWeights, { latWeights = it }, label = { Text("Lat stack") }, modifier = Modifier.fillMaxWidth())
-        Text(
-            when (healthStatus) {
-                HealthAvailability.READY -> "Health Connect is on this phone. Sets and reps stay in the app."
-                HealthAvailability.UPDATE_REQUIRED -> "Health Connect needs an update before sessions can be written."
-                HealthAvailability.UNAVAILABLE -> "Health Connect isn't available. Sessions stay on this phone."
-            },
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (healthStatus == HealthAvailability.READY) {
-                OutlinedButton(onClick = { permissionLauncher.launch(setOf(health.writePermission())) }) {
-                    Text("Allow Health Connect")
-                }
-            }
-            if (healthStatus == HealthAvailability.UPDATE_REQUIRED) {
-                OutlinedButton(onClick = {
-                    runCatching { context.startActivity(health.installIntent()) }
-                }) { Text("Update Health Connect") }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Write sessions to Health Connect")
-            Switch(checked = writeHealth, onCheckedChange = { writeHealth = it }, enabled = healthStatus == HealthAvailability.READY)
-        }
-        Button(onClick = {
-            onSave(
-                settings.copy(
-                    allowSkipDeload = skip,
-                    dbIncrement = db.toDoubleOrNull() ?: settings.dbIncrement,
-                    barbellIncrement = bar.toDoubleOrNull() ?: settings.barbellIncrement,
-                    latIncrement = lat.toDoubleOrNull() ?: settings.latIncrement,
-                    availableDb = dbWeights,
-                    availableBarbell = barWeights,
-                    availableLat = latWeights,
-                    writeHealthConnect = writeHealth && healthStatus == HealthAvailability.READY,
-                ),
-            )
-        }, modifier = Modifier.fillMaxWidth()) { Text("Save settings") }
-        OutlinedButton(onClick = onStarting, modifier = Modifier.fillMaxWidth()) { Text("Starting weights") }
-        OutlinedButton(onClick = onCheckIn, modifier = Modifier.fillMaxWidth()) { Text("Weekly check-in") }
-        OutlinedButton(onClick = onSwim, modifier = Modifier.fillMaxWidth()) { Text("Log a swim") }
-        OutlinedButton(onClick = onYears, modifier = Modifier.fillMaxWidth()) { Text("Year plan") }
-        OutlinedButton(onClick = { exportLauncher.launch("trades-prep-backup.json") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Export backup")
-        }
-        OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Import backup")
-        }
-        Text("About", fontWeight = FontWeight.SemiBold)
-        Text("Trades Prep keeps one person's strength log on this phone. No account, no cloud, no analytics.")
-        Text(SAFETY_LINE, fontWeight = FontWeight.Medium)
-    }
-}
 
 @Composable
 fun StartingWeightsScreen(
@@ -287,11 +159,6 @@ private fun ScoreRow(title: String, hint: String, value: Int, range: IntRange, o
             FilterChip(selected = value == score, onClick = { onChange(score) }, label = { Text("$score") })
         }
     }
-}
-
-@Composable
-private fun NumberField(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(value, onChange, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 }
 
 private fun trimNum(weight: Double): String {

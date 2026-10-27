@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.shamashel.workout.data.HistoryPoint
 import com.shamashel.workout.data.HistorySnapshot
+import com.shamashel.workout.data.plainLb
 
 @Composable
 fun HistoryScreen(
@@ -43,7 +44,7 @@ fun HistoryScreen(
     ) {
         item {
             Text("History", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-            Text("Weight and estimated reps to failure (reps + RIR) for the hardest set. Deload weeks and pain flags are marked.")
+            Text("The hardest set each day: the weight you lifted, and about how many reps you had before failure. A deload week and a pain flag are marked.")
         }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,9 +64,9 @@ fun HistoryScreen(
             items(history.points) { point ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("${point.dateLabel}  ·  ${trim(point.weight)} lb × ${point.reps}", fontWeight = FontWeight.Medium)
-                        Text("Est. reps to failure ${point.estimatedReps} · RIR ${point.rirLabel}")
-                        if (point.deload) Text("Deload", color = MaterialTheme.colorScheme.secondary)
+                        Text("${point.dateLabel} · ${plainLb(point.weight)} lb × ${point.reps}", fontWeight = FontWeight.Medium)
+                        Text("About ${point.estimatedReps} reps before failure · ${point.rirLabel} reps left")
+                        if (point.deload) Text("Deload week", color = MaterialTheme.colorScheme.secondary)
                         if (point.pain > 0) Text("Pain flag ${point.pain}", color = MaterialTheme.colorScheme.error)
                         if (point.reason.isNotBlank()) Text(point.reason, style = MaterialTheme.typography.bodySmall)
                     }
@@ -81,14 +82,28 @@ fun HistoryChart(points: List<HistoryPoint>, modifier: Modifier = Modifier) {
     val estimate = MaterialTheme.colorScheme.secondary
     Card(modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
-            Text("Weight and estimated reps", style = MaterialTheme.typography.labelLarge)
+            Text("Weight and reps before failure", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Weight", color = line, style = MaterialTheme.typography.labelMedium)
+                Text("Reps", color = estimate, style = MaterialTheme.typography.labelMedium)
+            }
+            val lightest = points.minOf { it.weight }
+            val heaviest = points.maxOf { it.weight }
+            Text(
+                "${plainLb(lightest)}–${plainLb(heaviest)} lb",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Canvas(Modifier.fillMaxWidth().height(180.dp).padding(top = 8.dp)) {
                 if (points.size < 2) return@Canvas
                 val maxWeight = points.maxOf { it.weight }.coerceAtLeast(1.0).toFloat()
                 val maxReps = points.maxOf { it.estimatedReps }.coerceAtLeast(1).toFloat()
+                val inset = 10f
+                val plotBottom = size.height - inset
+                val plotHeight = (plotBottom - inset).coerceAtLeast(1f)
                 val stepX = size.width / (points.size - 1).coerceAtLeast(1)
-                fun weightY(value: Double) = size.height - (value.toFloat() / maxWeight) * size.height
-                fun repY(value: Int) = size.height - (value / maxReps) * size.height
+                fun weightY(value: Double) = plotBottom - (value.toFloat() / maxWeight) * plotHeight
+                fun repY(value: Int) = plotBottom - (value / maxReps) * plotHeight
                 val weightPath = Path()
                 val repPath = Path()
                 points.forEachIndexed { index, point ->
@@ -114,6 +129,3 @@ fun HistoryChart(points: List<HistoryPoint>, modifier: Modifier = Modifier) {
     }
 }
 
-private fun trim(weight: Double): String {
-    return if (kotlin.math.abs(weight - weight.toInt()) < 0.001) weight.toInt().toString() else String.format("%.1f", weight)
-}
