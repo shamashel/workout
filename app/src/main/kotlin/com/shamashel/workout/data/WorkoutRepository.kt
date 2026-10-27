@@ -90,9 +90,11 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
                 tracksLoad = slot.tracksLoad,
                 notes = slot.notes,
                 prescription = if (slot.tracksLoad && state.weight > 0.0) {
-                    "${rx.sets} × ${formatReps(rx.targetReps)} · ${formatLb(rx.weight)} · RIR ${rx.targetRirLabel}"
+                    val effort = if (slot.isCarry) "sec" else "reps"
+                    "${rx.sets} sets · ${formatLb(rx.weight)} · ${formatReps(rx.targetReps).replace(" / ", ", ")} $effort · RIR ${rx.targetRirLabel}"
                 } else if (!slot.tracksLoad) {
-                    "${slot.nSets} × ${slot.repLo}${if (slot.repStep > 1) " s" else ""} · not loaded"
+                    val effort = if (slot.repStep > 1) "seconds" else "reps"
+                    "${slot.nSets} sets · ${slot.repLo} $effort · bodyweight"
                 } else {
                     "Starting weight not set"
                 },
@@ -441,12 +443,6 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun saveSettings(entity: SettingsEntity) {
         dao.saveSettings(entity)
-    }
-
-    suspend fun setMicroPlates(enabled: Boolean) {
-        val current = settingsEntity()
-        val updated = current.toEngine().withMicroPlates(enabled)
-        dao.saveSettings(updated.toEntity(current.writeHealthConnect))
     }
 
     suspend fun phases(): List<YearOutline> {

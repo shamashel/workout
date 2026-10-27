@@ -40,7 +40,7 @@ fun LogScreen(editor: EditorUi, onChange: (EditorUi) -> Unit, onSave: () -> Unit
                 OutlinedTextField(
                     value = set.weight,
                     onValueChange = { onChange(editor.copy(sets = editor.sets.replace(index, set.copy(weight = it)))) },
-                    label = { Text(if (slot.tracksLoad) "lb" else "—") },
+                    label = { Text(if (slot.tracksLoad) "Weight (lb)" else "—") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     enabled = slot.tracksLoad,
@@ -48,7 +48,7 @@ fun LogScreen(editor: EditorUi, onChange: (EditorUi) -> Unit, onSave: () -> Unit
                 OutlinedTextField(
                     value = set.reps,
                     onValueChange = { onChange(editor.copy(sets = editor.sets.replace(index, set.copy(reps = it.filter { ch -> ch.isDigit() })))) },
-                    label = { Text(if (slot.isCarry || !slot.tracksLoad && slot.prescription.contains("s")) "sec" else "reps") },
+                    label = { Text(if (slot.isCarry || !slot.tracksLoad && slot.prescription.contains("sec")) "Seconds" else "Reps") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )

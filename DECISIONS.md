@@ -107,6 +107,10 @@ Health Connect writes an exercise session only: start, end, and type (strength, 
 
 The safety line, shown on first launch and in settings, is exactly: “Not medical advice. Check with your doctor before ramping up.”
 
+## Settings equipment
+
+The settings screen edits dumbbells as a lightest weight, a heaviest weight, and a step, plus individual bells added or removed. The barbell is a bar, the plates on hand, and a heaviest load. The lat stack is a lightest weight, a heaviest weight, and a step. What gets stored, and what the engine reads, is still the expanded list of loads. The default bar (45 lb, plates 45 / 25 / 10 / 5 / 2.5, up to 545) is the same 5 lb grid as before, so a 10% cut from 135 still lands on 120. A saved list that is not a plate combination is kept as-is until the lifter chooses plates.
+
 ## Tooling
 
 Compose BOM `2026.09.00` pulls Compose 1.12, which requires compileSdk 37 and Android Gradle Plugin 9.1. This app stays on compileSdk 36 (Android 16) and AGP 8.11.1, so it uses Compose BOM `2026.06.01`.

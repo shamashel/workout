@@ -2,14 +2,23 @@ package com.shamashel.workout.ui
 
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
+import com.shamashel.workout.data.SettingsDraft
+import com.shamashel.workout.data.defaultBar
+import com.shamashel.workout.data.defaultDumbbells
+import com.shamashel.workout.data.defaultLatStack
 import com.shamashel.workout.data.FinishOutcome
 import com.shamashel.workout.data.HistoryPoint
 import com.shamashel.workout.data.HistorySnapshot
 import com.shamashel.workout.data.HomeSnapshot
 import com.shamashel.workout.data.SummaryRow
 import com.shamashel.workout.data.TodaySlot
+import com.shamashel.workout.health.HealthAvailability
+import com.shamashel.workout.health.HealthWriter
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,8 +82,48 @@ class ScreenShotTest {
                 )
             }
         }
-        compose.onNodeWithText("Est. reps to failure 14", substring = true).assertExists()
+        compose.onNodeWithText("About 14 reps before failure", substring = true).assertExists()
         save("history")
+    }
+
+    @Test
+    fun settingsEquipment() {
+        compose.setContent {
+            val context = LocalContext.current
+            val writer = remember { HealthWriter(context) }
+            WorkoutTheme {
+                SettingsScreen(
+                    settings = SettingsDraft(
+                        dumbbells = defaultDumbbells(),
+                        bar = defaultBar(),
+                        lat = defaultLatStack(),
+                        micro = false,
+                        dbIncrement = 5.0,
+                        barIncrement = 10.0,
+                        latIncrement = 5.0,
+                        allowSkipDeload = false,
+                        writeHealthConnect = false,
+                    ).toSettings(),
+                    healthStatus = HealthAvailability.READY,
+                    healthGranted = false,
+                    health = writer,
+                    onSave = { _, _ -> },
+                    onExport = { "" },
+                    onImport = {},
+                    onYears = {},
+                    onStarting = {},
+                    onSwim = {},
+                    onCheckIn = {},
+                    onHealthPermission = {},
+                )
+            }
+        }
+        compose.onNodeWithText("5 to 150 lb in 5 lb steps").assertExists()
+        compose.onNodeWithText("45 lb bar, 5 lb jumps, up to 545 lb").assertExists()
+        save("settings")
+        compose.onNodeWithText("Allow Health Connect").performScrollTo()
+        compose.waitForIdle()
+        save("settings-health")
     }
 
     private fun save(name: String) {
@@ -127,11 +176,11 @@ private fun sampleHome(): HomeSnapshot {
         rirNote = "Target RIR 3. Stop with reps left.",
         deloadBanner = null,
         slots = listOf(
-            todaySlot("A1", "Goblet squat", "50 lb · 10 / 9 / 9 · RIR 3", drafted = true),
-            todaySlot("A2", "DB overhead press", "30 lb · 8 / 8 / 8 · RIR 3"),
-            todaySlot("A3", "One-arm DB row", "35 lb · 8 / 8 / 8 · RIR 3", perSide = true),
-            todaySlot("A4", "Farmer carry", "40 lb · 30 / 30 / 30 s · RIR 3", carry = true),
-            todaySlot("A5", "Dead bug", "2 × 8 · optional", optional = true, tracksLoad = false),
+            todaySlot("A1", "Goblet squat", "3 sets · 50 lb · 10, 9, 9 reps · RIR 3", drafted = true),
+            todaySlot("A2", "DB overhead press", "3 sets · 30 lb · 8, 8, 8 reps · RIR 3"),
+            todaySlot("A3", "One-arm DB row", "3 sets · 35 lb · 8, 8, 8 reps · RIR 3", perSide = true),
+            todaySlot("A4", "Farmer carry", "3 sets · 40 lb · 30, 30, 30 sec · RIR 3", carry = true),
+            todaySlot("A5", "Dead bug", "2 sets · 8 reps · bodyweight", optional = true, tracksLoad = false),
         ),
         needsWeights = false,
         checkInDue = false,

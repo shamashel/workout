@@ -137,8 +137,8 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                     SettingsScreen(
                         settings = settings,
                         healthStatus = viewModel.healthStatus,
+                        healthGranted = viewModel.healthGranted,
                         health = viewModelHealth(viewModel),
-                        onMicro = viewModel::setMicro,
                         onSave = viewModel::saveSettings,
                         onExport = { viewModel.exportJson() },
                         onImport = { raw -> viewModel.importJson(raw) { viewModel.message = it } },
@@ -146,6 +146,7 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                         onStarting = { viewModel.loadStarting(); nav.navigate("start") },
                         onSwim = { nav.navigate("swim") },
                         onCheckIn = { nav.navigate("checkin") },
+                        onHealthPermission = viewModel::onHealthPermission,
                     )
                 }
             }
