@@ -495,6 +495,7 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
             swims = dao.allSwims(),
             phases = dao.phases(),
             slotOverrides = dao.slotOverrides(),
+            drafts = dao.drafts(),
         )
         return json.encodeToString(bundle)
     }
@@ -526,6 +527,7 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
             dao.insertSwims(bundle.swims)
             bundle.phases.forEach { dao.savePhase(it) }
             bundle.slotOverrides.forEach { dao.saveSlotOverride(it) }
+            bundle.drafts.forEach { dao.saveDraft(it) }
         }
     }
 
@@ -610,6 +612,7 @@ data class BackupBundle(
     val swims: List<SwimEntity> = emptyList(),
     val phases: List<PhaseNoteEntity> = emptyList(),
     val slotOverrides: List<SlotOverrideEntity> = emptyList(),
+    val drafts: List<DraftEntity> = emptyList(),
 )
 
 const val SAFETY_LINE = SAFETY_COPY

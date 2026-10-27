@@ -27,9 +27,21 @@ import androidx.room.RoomDatabase
 abstract class WorkoutDatabase : RoomDatabase() {
     abstract fun dao(): WorkoutDao
 
+    /** Fold the write-ahead log into workout.db so a file copy is a complete snapshot. */
+    fun checkpoint() {
+        val cursor = openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)")
+        try {
+            cursor.moveToFirst()
+        } finally {
+            cursor.close()
+        }
+    }
+
     companion object {
-        fun create(context: Context): WorkoutDatabase {
-            return Room.databaseBuilder(context, WorkoutDatabase::class.java, "workout.db").build()
+        const val FILE_NAME = "workout.db"
+
+        fun create(context: Context, name: String = FILE_NAME): WorkoutDatabase {
+            return Room.databaseBuilder(context, WorkoutDatabase::class.java, name).build()
         }
     }
 }

@@ -231,7 +231,7 @@ fun SettingsScreen(
         )
         SectionCard(
             title = "Backup",
-            helper = "A JSON file in a place you choose. Nothing leaves the phone.",
+            helper = "Uninstalling deletes the log. Export a JSON file first if you want a copy you can import. Nothing is uploaded.",
             onReset = null,
         ) {
             Button(onClick = { exportLauncher.launch("trades-prep-backup.json") }, modifier = Modifier.fillMaxWidth()) {

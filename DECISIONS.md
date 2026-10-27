@@ -101,7 +101,11 @@ History “estimated reps” is the hardest set’s reps plus its RIR (a stand-i
 
 An override stores suggested weight and reps, chosen weight and reps, and the time. The next prescription uses the chosen numbers.
 
-Backup is a user-triggered JSON file through the system picker. It is a version-1 dump of the local tables. Nothing is uploaded.
+Backup has two layers. Auto Backup is on, with explicit include rules for `workout.db`, its `-wal` and `-shm` files, and shared preferences. A backup agent checkpoints the write-ahead log first, so the copy is the latest commits. Health Connect exercise sessions are not files in this app and are not part of the backup. The `writeHealthConnect` switch is an app setting inside the Room database, so it is included with the rest of the log.
+
+The Room schema is still version 1. v0.1.0 and v0.1.1 use that schema, so an upgrade does not run a migration. There is no destructive fallback. A future schema change needs a real `Migration`.
+
+A plain uninstall deletes the database. `adb uninstall -k` (or `cmd package uninstall -k`) keeps it, and installing a newer build signed with the same key keeps it too. Auto Backup can restore after a reinstall only when the phone actually has a backup. A sideloaded APK often does not. Settings still exports and imports a version-1 JSON file through the system picker, including an in-progress draft. A file written before drafts were included still imports. Nothing is uploaded.
 
 Health Connect writes an exercise session only: start, end, and type (strength, pool swim, or open-water swim). Sets and reps stay in the app. The only health permission requested is `WRITE_EXERCISE`. The manifest strips `INTERNET`. If Health Connect is missing, out of date, or the write is denied, the session remains in the app and the screen says so.
 

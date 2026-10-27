@@ -6,6 +6,10 @@ import com.shamashel.workout.data.WorkoutRepository
 import com.shamashel.workout.health.HealthWriter
 
 class WorkoutApplication : Application() {
+    lateinit var database: WorkoutDatabase
+        private set
+
+    fun databaseReady(): Boolean = ::database.isInitialized
     lateinit var repository: WorkoutRepository
         private set
     lateinit var health: HealthWriter
@@ -13,7 +17,8 @@ class WorkoutApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        repository = WorkoutRepository(WorkoutDatabase.create(this))
+        database = WorkoutDatabase.create(this)
+        repository = WorkoutRepository(database)
         health = HealthWriter(this)
     }
 }

@@ -69,7 +69,17 @@ Open the release (for example `v0.1.0`) and download `trades-prep-v0.1.0.apk`.
 
 Android will refuse the file until the browser is allowed to install apps. In Chrome that is Settings, Apps, Chrome, Install unknown apps, Allow. Other browsers have the same switch under their own app name. Then tap the downloaded APK and install it.
 
-A newer tag installs over the previous release and keeps the on-device log, because every release APK is signed with the same key and carries a higher `versionCode`. A local debug build is a different signature. If Android says the app was not installed, the phone already has a copy signed by another key. Export a backup from the app, uninstall it, and install the release APK again.
+A newer tag installs over the previous release and keeps the on-device log, because every release APK is signed with the same key and carries a higher `versionCode`. The database schema is still version 1, so that upgrade does not migrate or wipe the file. A local debug build is a different signature. If Android says the app was not installed, the phone already has a copy signed by another key. Export a backup from the app, uninstall it, and install the release APK again.
+
+## What happens to the log
+
+| What you do | The log |
+| --- | --- |
+| Install a newer release over this one (same signing key) | Kept |
+| Uninstall, then install again | Gone, unless the phone restores an Auto Backup or you import a JSON file |
+| `adb shell cmd package uninstall -k com.shamashel.workout`, then install the same signature | Kept |
+
+Auto Backup includes the Room database (and checkpoints the `-wal` file first) and shared preferences. It does not include Health Connect sessions; those stay in Health Connect. Sideloaded installs often never get an Auto Backup restore. Before you uninstall, use Settings → Export backup, then Import backup after the new install. The file is JSON on the phone. Nothing is uploaded.
 
 Health Connect permission is requested by the app, not by the installer. After install or upgrade, open Trades Prep, go to Settings, and grant the exercise-session write if you want swims and strength sessions on Health Connect.
 
