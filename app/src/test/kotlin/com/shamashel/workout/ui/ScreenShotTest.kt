@@ -110,6 +110,7 @@ class ScreenShotTest {
                     onSave = { _, _ -> },
                     onExport = { "" },
                     onImport = {},
+                    onMessage = {},
                     onYears = {},
                     onStarting = {},
                     onSwim = {},

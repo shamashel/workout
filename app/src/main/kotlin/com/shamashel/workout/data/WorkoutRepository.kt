@@ -24,15 +24,24 @@ import com.shamashel.workout.engine.immediateDeloadReasons
 import com.shamashel.workout.engine.onCheckIn
 import com.shamashel.workout.engine.withMicroPlates
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class WorkoutRepository(private val db: WorkoutDatabase) {
+private val backupJson = Json { ignoreUnknownKeys = true; prettyPrint = true }
+
+const val BACKUP_SCHEMA_VERSION = 1
+
+class WorkoutRepository(
+    private val db: WorkoutDatabase,
+    private val onDataChanged: () -> Unit = {},
+) {
     private val dao = db.dao()
-    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+    private val json = backupJson
     private val dateFormat = DateTimeFormatter.ofPattern("MMM d", Locale.US)
 
     suspend fun bootstrap() {
@@ -153,9 +162,11 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun finishDay(day: Char, durationMin: Int, readiness: Int?): FinishOutcome {
         val today = LocalDate.now()
-        return db.withTransaction {
+        val outcome = db.withTransaction {
             finishInside(day, today, durationMin, readiness)
         }
+        onDataChanged()
+        return outcome
     }
 
     private suspend fun finishInside(day: Char, today: LocalDate, durationMin: Int, readiness: Int?): FinishOutcome {
@@ -443,6 +454,7 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun saveSettings(entity: SettingsEntity) {
         dao.saveSettings(entity)
+        onDataChanged()
     }
 
     suspend fun phases(): List<YearOutline> {
@@ -482,26 +494,26 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
 
     suspend fun exportJson(): String {
         val bundle = BackupBundle(
-            version = 1,
+            version = BACKUP_SCHEMA_VERSION,
             program = dao.program(),
             settings = dao.settings(),
             slots = dao.slots(),
-            states = dao.states(),
+            states = dao.states().sortedBy { it.slotId },
             sessions = dao.allSessions(),
             sets = dao.allSets(),
             checkIns = dao.allCheckIns(),
             overrides = dao.allOverrides(),
             days = dao.allDays(),
             swims = dao.allSwims(),
-            phases = dao.phases(),
-            slotOverrides = dao.slotOverrides(),
+            phases = dao.phases().sortedBy { it.year },
+            slotOverrides = dao.slotOverrides().sortedBy { it.slotId },
+            drafts = dao.drafts().sortedBy { it.slotId },
         )
         return json.encodeToString(bundle)
     }
 
     suspend fun importJson(raw: String) {
-        val bundle = json.decodeFromString<BackupBundle>(raw)
-        require(bundle.version == 1) { "This backup is version ${bundle.version}. This app reads version 1." }
+        val bundle = decodeBackup(raw)
         db.withTransaction {
             dao.clearSlots()
             dao.clearStates()
@@ -526,6 +538,7 @@ class WorkoutRepository(private val db: WorkoutDatabase) {
             dao.insertSwims(bundle.swims)
             bundle.phases.forEach { dao.savePhase(it) }
             bundle.slotOverrides.forEach { dao.saveSlotOverride(it) }
+            bundle.drafts.forEach { dao.saveDraft(it) }
         }
     }
 
@@ -610,6 +623,66 @@ data class BackupBundle(
     val swims: List<SwimEntity> = emptyList(),
     val phases: List<PhaseNoteEntity> = emptyList(),
     val slotOverrides: List<SlotOverrideEntity> = emptyList(),
+    val drafts: List<DraftEntity> = emptyList(),
 )
 
 const val SAFETY_LINE = SAFETY_COPY
+
+data class BackupPreview(
+    val version: Int,
+    val sessionCount: Int,
+    val firstDay: LocalDate?,
+    val lastDay: LocalDate?,
+)
+
+fun decodeBackup(raw: String): BackupBundle {
+    if (raw.isBlank()) {
+        throw IllegalArgumentException("That file isn't a Trades Prep backup.")
+    }
+    val bundle = try {
+        backupJson.decodeFromString<BackupBundle>(raw)
+    } catch (_: SerializationException) {
+        throw IllegalArgumentException("That file isn't a Trades Prep backup.")
+    }
+    if (bundle.version != BACKUP_SCHEMA_VERSION) {
+        throw IllegalArgumentException(
+            "This backup is version ${bundle.version}. This app reads version $BACKUP_SCHEMA_VERSION.",
+        )
+    }
+    val sessionIds = bundle.sessions.map { it.id }.toSet()
+    val keptSets = bundle.sets.filter { it.sessionId in sessionIds }
+    return if (keptSets.size == bundle.sets.size) bundle else bundle.copy(sets = keptSets)
+}
+
+fun previewBackup(raw: String): BackupPreview {
+    val bundle = decodeBackup(raw)
+    val days = bundle.sessions.map { it.epochDay }
+    return BackupPreview(
+        version = bundle.version,
+        sessionCount = bundle.sessions.size,
+        firstDay = days.minOrNull()?.let(LocalDate::ofEpochDay),
+        lastDay = days.maxOrNull()?.let(LocalDate::ofEpochDay),
+    )
+}
+
+private val backupDayFormat = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+
+fun restoreSummary(preview: BackupPreview): String {
+    val count = when (preview.sessionCount) {
+        1 -> "1 session"
+        else -> "${preview.sessionCount} sessions"
+    }
+    val first = preview.firstDay
+    val last = preview.lastDay
+    val range = when {
+        first == null || last == null -> ""
+        first == last -> " on ${first.format(backupDayFormat)}"
+        else -> " from ${first.format(backupDayFormat)} to ${last.format(backupDayFormat)}"
+    }
+    return "This file has $count$range. Restoring replaces the sessions, settings, and progression on this phone."
+}
+
+fun backupFileName(now: LocalDateTime = LocalDateTime.now()): String {
+    val stamp = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm"))
+    return "trades-prep-$stamp.json"
+}

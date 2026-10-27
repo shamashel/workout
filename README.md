@@ -53,7 +53,7 @@ Enable USB debugging, then:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-A debug APK is signed with this machine's debug key. It will not upgrade an install that came from a GitHub release. Uninstall that copy first, or install the release APK instead. Export a JSON backup before uninstalling if you want to keep the log.
+A debug APK is signed with this machine's debug key. It will not upgrade an install that came from a GitHub release. Uninstall that copy first, or install the release APK instead. Use Settings → Back up to Google Drive before uninstalling if you want to keep the log.
 
 The app id is `com.shamashel.workout`. On first launch it asks you to read the safety line: “Not medical advice. Check with your doctor before ramping up.” The same line is in Settings.
 
@@ -69,7 +69,33 @@ Open the release (for example `v0.1.0`) and download `trades-prep-v0.1.0.apk`.
 
 Android will refuse the file until the browser is allowed to install apps. In Chrome that is Settings, Apps, Chrome, Install unknown apps, Allow. Other browsers have the same switch under their own app name. Then tap the downloaded APK and install it.
 
-A newer tag installs over the previous release and keeps the on-device log, because every release APK is signed with the same key and carries a higher `versionCode`. A local debug build is a different signature. If Android says the app was not installed, the phone already has a copy signed by another key. Export a backup from the app, uninstall it, and install the release APK again.
+A newer tag installs over the previous release and keeps the on-device log, because every release APK is signed with the same key and carries a higher `versionCode`. The database schema is still version 1, so that upgrade does not migrate or wipe the file. A local debug build is a different signature. If Android says the app was not installed, the phone already has a copy signed by another key. Back up to Google Drive from the app, uninstall it, and install the release APK again. Then use Restore from backup.
+
+## What happens to the log
+
+| What you do | The log |
+| --- | --- |
+| Install a newer release over this one (same signing key) | Kept |
+| Uninstall, then install again | Gone, unless the phone restores an Auto Backup or you restore a JSON file |
+| `adb shell cmd package uninstall -k com.shamashel.workout`, then install the same signature | Kept |
+
+### Device backup in the Google account
+
+Android Auto Backup stores this app's database in the Google account's device backup. That copy lives with Backup by Google One. It is not a file you can open in Drive.
+
+On the phone, open Settings → Google → All services → Backup, or Settings → System → Backup. Turn on Backup by Google One (some phones say Back up to Google Drive). A Google account has to be listed. Trades Prep is included on its own. There is no switch for it inside the app. Open the app once after installing it. Android skips an app that is force-stopped.
+
+Finishing a workout or changing a setting calls `BackupManager.dataChanged()`, so Android schedules the copy without another tap. The phone still writes it when it is idle, charging, and on Wi-Fi. From a computer you can ask for it with `adb shell bmgr backupnow com.shamashel.workout`. The per-app cap is about 25 MB. Settings shows an Automatic backup row with the same reminder: Settings > Google > Backup has to be on.
+
+The backup includes the Room database (the app checkpoints the `-wal` file first) and shared preferences. It does not include Health Connect sessions. Those stay in Health Connect. A sideloaded install is restored only when that Google backup actually exists and auto-restore is on.
+
+### A file you choose in Drive
+
+Settings → **Back up to Google Drive** writes one timestamped file, `trades-prep-YYYY-MM-DD-HHmm.json`. The system file picker opens (`ACTION_CREATE_DOCUMENT`). Choose Google Drive, Downloads, or any other place the picker lists. You can rename the file there. The app does not sign in to Google and does not upload anything except the file you pick.
+
+**Restore from backup** opens the same picker (`ACTION_OPEN_DOCUMENT`). Drive sometimes labels the file as plain text or a generic binary, so those types are selectable too. The app then shows how many sessions are in the file and the date range. **Replace log** replaces the sessions, settings, and progression on the phone. Cancel leaves the phone as it is.
+
+The file carries schema version 1. A newer file, or a file that is not this backup, is refused and the log is left alone. Drive access is only the file you choose.
 
 Health Connect permission is requested by the app, not by the installer. After install or upgrade, open Trades Prep, go to Settings, and grant the exercise-session write if you want swims and strength sessions on Health Connect.
 
@@ -117,7 +143,7 @@ Set all four repository secrets, or leave all four unset. A partial set fails th
 
 APKs signed with that private key do not upgrade over APKs signed with the committed key. Pick one key before the first install you care about keeping.
 
-Settings also holds plate increments, the dumbbell list, micro-plates, and the skip-deload switch. Export and import use the system file picker and a local JSON file.
+Settings also holds plate increments, the dumbbell list, micro-plates, and the skip-deload switch. Back up to Google Drive and Restore from backup use the system file picker. The file can go to Drive or stay on the phone. The app does not call the Drive API.
 
 ## Layout
 
