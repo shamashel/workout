@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -42,19 +43,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import com.shamashel.workout.data.BackupPreview
 import com.shamashel.workout.data.DEFAULT_PLATES
 import com.shamashel.workout.data.PLATE_CHOICES
 import com.shamashel.workout.data.RangeKit
 import com.shamashel.workout.data.SAFETY_LINE
 import com.shamashel.workout.data.SettingsDraft
 import com.shamashel.workout.data.SettingsEntity
+import com.shamashel.workout.data.backupFileName
 import com.shamashel.workout.data.lbPhrase
 import com.shamashel.workout.data.plainLb
+import com.shamashel.workout.data.previewBackup
+import com.shamashel.workout.data.restoreSummary
 import com.shamashel.workout.data.toDraft
 import com.shamashel.workout.health.HealthAvailability
 import com.shamashel.workout.health.HealthWriter
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+
+private data class PendingRestore(val raw: String, val preview: BackupPreview)
 
 @Composable
 fun SettingsScreen(
@@ -65,6 +72,7 @@ fun SettingsScreen(
     onSave: (SettingsEntity, String?) -> Unit,
     onExport: suspend () -> String,
     onImport: (String) -> Unit,
+    onMessage: (String) -> Unit,
     onYears: () -> Unit,
     onStarting: () -> Unit,
     onSwim: () -> Unit,
@@ -83,17 +91,57 @@ fun SettingsScreen(
     ) { granted ->
         onHealthPermission(granted.contains(health.writePermission()))
     }
+    var pendingRestore by remember { mutableStateOf<PendingRestore?>(null) }
+    // CreateDocument is ACTION_CREATE_DOCUMENT. OpenDocument is ACTION_OPEN_DOCUMENT.
+    // Drive sometimes labels a JSON file as text/plain or application/octet-stream.
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val raw = onExport()
-            context.contentResolver.openOutputStream(uri)?.use { it.write(raw.toByteArray()) }
+            try {
+                val raw = onExport()
+                val stream = context.contentResolver.openOutputStream(uri)
+                if (stream == null) {
+                    onMessage("Couldn't write that file.")
+                    return@launch
+                }
+                stream.use { it.write(raw.toByteArray(Charsets.UTF_8)) }
+                onMessage("Backup file saved.")
+            } catch (error: Exception) {
+                onMessage(error.message ?: "Couldn't write that file.")
+            }
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText().orEmpty()
-        onImport(raw)
+        scope.launch {
+            val raw = try {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }.orEmpty()
+            } catch (_: Exception) {
+                onMessage("That file isn't a Trades Prep backup.")
+                return@launch
+            }
+            try {
+                pendingRestore = PendingRestore(raw, previewBackup(raw))
+            } catch (error: IllegalArgumentException) {
+                onMessage(error.message ?: "That file isn't a Trades Prep backup.")
+            }
+        }
+    }
+    pendingRestore?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { pendingRestore = null },
+            title = { Text("Restore from backup") },
+            text = { Text(restoreSummary(pending.preview)) },
+            confirmButton = {
+                Button(onClick = {
+                    pendingRestore = null
+                    onImport(pending.raw)
+                }) { Text("Replace log") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestore = null }) { Text("Cancel") }
+            },
+        )
     }
     Column(
         modifier = Modifier
@@ -231,14 +279,24 @@ fun SettingsScreen(
         )
         SectionCard(
             title = "Backup",
-            helper = "Uninstalling deletes the log. Export a JSON file first if you want a copy you can import. Nothing is uploaded.",
+            helper = "Back up to Google Drive writes one timestamped JSON file. The phone's file picker opens, and you choose Google Drive or a folder on this phone. The app only writes the file you pick. Device backup is separate: Settings, Google, Backup. Turn on Backup by Google One with a Google account on the phone, and open this app once so Android includes it. That copy is not a file you can open in Drive.",
             onReset = null,
         ) {
-            Button(onClick = { exportLauncher.launch("trades-prep-backup.json") }, modifier = Modifier.fillMaxWidth()) {
-                Text("Export backup")
+            Button(
+                onClick = { exportLauncher.launch(backupFileName()) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Back up to Google Drive")
             }
-            OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Import backup")
+            OutlinedButton(
+                onClick = {
+                    importLauncher.launch(
+                        arrayOf("application/json", "text/plain", "application/octet-stream"),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Restore from backup")
             }
         }
         SectionCard(

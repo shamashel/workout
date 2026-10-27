@@ -105,7 +105,11 @@ Backup has two layers. Auto Backup is on, with explicit include rules for `worko
 
 The Room schema is still version 1. v0.1.0 and v0.1.1 use that schema, so an upgrade does not run a migration. There is no destructive fallback. A future schema change needs a real `Migration`.
 
-A plain uninstall deletes the database. `adb uninstall -k` (or `cmd package uninstall -k`) keeps it, and installing a newer build signed with the same key keeps it too. Auto Backup can restore after a reinstall only when the phone actually has a backup. A sideloaded APK often does not. Settings still exports and imports a version-1 JSON file through the system picker, including an in-progress draft. A file written before drafts were included still imports. Nothing is uploaded.
+A plain uninstall deletes the database. `adb uninstall -k` (or `cmd package uninstall -k`) keeps it, and installing a newer build signed with the same key keeps it too. Auto Backup can restore after a reinstall only when the phone actually has a Google device backup and auto-restore is on. A sideloaded APK often does not. That device backup is the private Backup by Google One copy. It is not a file in the user's Drive folder. The phone shows it under Settings → Google → Backup.
+
+Settings also writes a versioned JSON file through the system file picker (`ACTION_CREATE_DOCUMENT` / `ACTION_OPEN_DOCUMENT`). The button is labeled Back up to Google Drive because Drive is one of the places that picker offers. The suggested name is `trades-prep-YYYY-MM-DD-HHmm.json`. Restore reads the file, shows the session count and date range, and replaces the on-phone log only after confirmation. The schema version is the `version` field. This app reads version 1. Unknown fields are ignored. A set whose session is missing from the file is dropped. A file written before drafts were included still imports. The app never holds a Drive token. Access is the single file the user picks.
+
+A later option, not built: a scheduled upload of that JSON into a Drive folder the user can browse would need the Google Drive API and an OAuth client in a Cloud project. This private sideload does not have either, so that path stays out.
 
 Health Connect writes an exercise session only: start, end, and type (strength, pool swim, or open-water swim). Sets and reps stay in the app. The only health permission requested is `WRITE_EXERCISE`. The manifest strips `INTERNET`. If Health Connect is missing, out of date, or the write is denied, the session remains in the app and the screen says so.
 

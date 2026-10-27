@@ -142,6 +142,7 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                         onSave = viewModel::saveSettings,
                         onExport = { viewModel.exportJson() },
                         onImport = { raw -> viewModel.importJson(raw) { viewModel.message = it } },
+                        onMessage = { viewModel.message = it },
                         onYears = { viewModel.loadSettings(); nav.navigate("years") },
                         onStarting = { viewModel.loadStarting(); nav.navigate("start") },
                         onSwim = { nav.navigate("swim") },
