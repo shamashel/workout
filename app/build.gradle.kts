@@ -1,3 +1,7 @@
+import com.android.build.api.variant.HasHostTestsBuilder
+import com.android.build.api.variant.HostTestBuilder
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -14,13 +18,51 @@ android {
         applicationId = "com.shamashel.workout"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = (findProperty("app.versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("app.versionName") as String?) ?: "1.0"
+    }
+
+    signingConfigs {
+        create("personal") {
+            val encoded = System.getenv("RELEASE_KEYSTORE_BASE64").orEmpty().trim()
+            val storePasswordEnv = System.getenv("RELEASE_STORE_PASSWORD").orEmpty()
+            val aliasEnv = System.getenv("RELEASE_KEY_ALIAS").orEmpty().trim()
+            val keyPasswordEnv = System.getenv("RELEASE_KEY_PASSWORD").orEmpty()
+            val provided = listOf(encoded, storePasswordEnv, aliasEnv, keyPasswordEnv)
+            if (provided.any { it.isNotBlank() } && provided.any { it.isBlank() }) {
+                throw org.gradle.api.GradleException(
+                    "Set all of RELEASE_KEYSTORE_BASE64, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, " +
+                        "and RELEASE_KEY_PASSWORD, or leave all four unset.",
+                )
+            }
+            if (provided.all { it.isNotBlank() }) {
+                val decoded = layout.buildDirectory.file("signing/release.keystore").get().asFile
+                decoded.parentFile?.mkdirs()
+                val compact = encoded.replace(Regex("\\s"), "")
+                decoded.writeBytes(Base64.getDecoder().decode(compact))
+                storeFile = decoded
+                storePassword = storePasswordEnv
+                keyAlias = aliasEnv
+                keyPassword = keyPasswordEnv
+            } else {
+                val committed = file("signing/trades-prep-debug.keystore")
+                if (!committed.isFile) {
+                    throw org.gradle.api.GradleException(
+                        "Missing ${committed}. The personal-use keystore is part of the repo. See the README.",
+                    )
+                }
+                storeFile = committed
+                storePassword = "trades-prep"
+                keyAlias = "trades-prep"
+                keyPassword = "trades-prep"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("personal")
         }
     }
 
@@ -49,7 +91,7 @@ android {
 // Release unit tests would otherwise look for that activity and fail.
 androidComponents {
     beforeVariants(selector().withBuildType("release")) { builder ->
-        builder.enableUnitTest = false
+        (builder as HasHostTestsBuilder).hostTests.getValue(HostTestBuilder.UNIT_TEST_TYPE).enable = false
     }
 }
 

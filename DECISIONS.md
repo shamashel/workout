@@ -110,3 +110,13 @@ The safety line, shown on first launch and in settings, is exactly: “Not medic
 ## Tooling
 
 Compose BOM `2026.09.00` pulls Compose 1.12, which requires compileSdk 37 and Android Gradle Plugin 9.1. This app stays on compileSdk 36 (Android 16) and AGP 8.11.1, so it uses Compose BOM `2026.06.01`.
+
+## Release signing
+
+Android will only upgrade an install when the new APK is signed by the same certificate and its `versionCode` is higher. A debug keystore generated on each GitHub runner would fail that check, so release builds use one stable key.
+
+The default key is `app/signing/trades-prep-debug.keystore`, alias `trades-prep`, password `trades-prep`. It is committed on purpose. The password is not a secret: anyone with the repo can sign an APK as this app. That matches a personal-use app with no accounts. The key is not used for anything else.
+
+Optional repository secrets replace that key when all four are set: `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. If only some are set, the build fails instead of silently mixing keys. Switching from the committed key to a private one (or back) changes the certificate, so the phone will not upgrade. Uninstall first, after exporting a backup.
+
+Tagged releases set `versionCode` from `vMAJOR.MINOR.PATCH` as `MAJOR * 1000000 + MINOR * 1000 + PATCH` (`v0.1.0` is 1000, `v0.1.1` is 1001). A later tag therefore installs over an earlier one. Manual workflow builds stay at `versionCode` 1 so they do not block a later tag; they also will not install over a tag that is already on the phone.

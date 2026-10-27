@@ -12,5 +12,7 @@
 *.aab
 *.keystore
 *.jks
+# Personal-use signing key. The password is in the repo on purpose. See README.
+!app/signing/trades-prep-debug.keystore
 local.properties
 .kotlin/
