@@ -39,6 +39,7 @@ const val BACKUP_SCHEMA_VERSION = 1
 class WorkoutRepository(
     private val db: WorkoutDatabase,
     private val onDataChanged: () -> Unit = {},
+    private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     private val dao = db.dao()
     private val json = backupJson
@@ -46,7 +47,7 @@ class WorkoutRepository(
 
     suspend fun bootstrap() {
         if (dao.program() != null) return
-        val today = LocalDate.now().toEpochDay()
+        val today = clock().toEpochDay()
         db.withTransaction {
             dao.saveSlots(Year1Plan.slots.map { it.toEntity() })
             dao.saveStates(Year1Plan.slots.map { WorkoutEngine.initialState(it, 0.0).toEntity() })
@@ -76,20 +77,62 @@ class WorkoutRepository(
         dao.saveProgram(program.copy(safetyAcknowledged = true))
     }
 
-    suspend fun home(selectedDay: Char?): HomeSnapshot {
-        val today = LocalDate.now()
+    suspend fun home(): HomeSnapshot {
+        val today = clock()
+        val stored = settingsEntity()
+        val schedule = WeekSchedule.decode(stored.weekSchedule)
+        val usual = schedule.on(today).code
+        val showing = effectiveDay(stored, today)
+        return buildHome(showing, today, usual, showing != usual)
+    }
+
+    suspend fun useDayToday(day: Char) {
+        val today = clock()
+        val current = settingsEntity()
+        val usual = WeekSchedule.decode(current.weekSchedule).on(today).code
+        if (day == usual) {
+            saveSettings(current.copy(dayOverrideEpoch = null, dayOverride = null))
+        } else {
+            saveSettings(current.copy(dayOverrideEpoch = today.toEpochDay(), dayOverride = day.toString()))
+        }
+    }
+
+    suspend fun clearTodayOverride() {
+        val current = settingsEntity()
+        saveSettings(current.copy(dayOverrideEpoch = null, dayOverride = null))
+    }
+
+    suspend fun startFreshFromToday() {
+        val today = clock()
+        val current = settingsEntity()
+        saveSettings(
+            current.copy(
+                weekSchedule = WeekSchedule.year1.reanchored(today).encode(),
+                dayOverrideEpoch = null,
+                dayOverride = null,
+            ),
+        )
+    }
+
+    private suspend fun buildHome(
+        day: Char,
+        today: LocalDate,
+        usualDay: Char,
+        todayOnly: Boolean,
+    ): HomeSnapshot {
         val program = requireProgram()
-        val clock = program.toClock()
+        val programClock = program.toClock()
         val settings = engineSettings()
+        val schedule = WeekSchedule.decode(settingsEntity().weekSchedule)
         val slots = definitions()
         val states = dao.states().associate { it.slotId to it.toState() }
         val drafts = dao.drafts().map { it.slotId }.toSet()
         val loggedToday = dao.sessionsSince(today.toEpochDay()).map { it.slotId }.toSet()
-        val day = selectedDay ?: scheduledDay(today)
-        val daySlots = slots.filter { it.day == day }
+        val showing = WeekdayAssignment.fromCode(day) ?: WeekdayAssignment.REST
+        val daySlots = slots.filter { it.day == showing.code }
         val cards = daySlots.map { slot ->
             val state = states.getValue(slot.id)
-            val rx = WorkoutEngine.prescription(slot, state, clock, settings)
+            val rx = WorkoutEngine.prescription(slot, state, programClock, settings)
             TodaySlot(
                 id = slot.id,
                 name = state.exerciseName,
@@ -123,17 +166,17 @@ class WorkoutRepository(
             (checkIn == null || checkIn.epochDay < program.weekStartedEpochDay)
         val rir = if (daySlots.isEmpty()) "" else cards.firstOrNull { it.tracksLoad }?.rirLabel.orEmpty()
         return HomeSnapshot(
-            day = day,
+            day = showing.code,
             dateLabel = today.format(DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.US)),
-            headline = dayTitle(day),
-            weekLabel = "Block ${clock.blockIndex} · week ${clock.weekOfBlock.coerceAtMost(4)} of 4",
-            rirNote = if (clock.deloadActive || clock.weekOfBlock >= 4) {
+            headline = headlineFor(showing),
+            weekLabel = "Block ${programClock.blockIndex} · week ${programClock.weekOfBlock.coerceAtMost(4)} of 4",
+            rirNote = if (programClock.deloadActive || programClock.weekOfBlock >= 4) {
                 "Deload week. Easy sets, target RIR 4+."
             } else {
                 "Target RIR this week: $rir. If you're unsure, pick the higher RIR."
             },
-            deloadBanner = if (clock.deloadActive || clock.weekOfBlock >= 4) {
-                clock.deloadReason ?: "Scheduled deload, week 4 of the block."
+            deloadBanner = if (programClock.deloadActive || programClock.weekOfBlock >= 4) {
+                programClock.deloadReason ?: "Scheduled deload, week 4 of the block."
             } else {
                 null
             },
@@ -142,13 +185,16 @@ class WorkoutRepository(
             checkInDue = checkInDue,
             showSafety = !program.safetyAcknowledged,
             week0Passes = program.week0Passes,
-            isRestDay = day !in listOf('A', 'B', 'C'),
-            restNote = restNote(day),
+            isRestDay = showing == WeekdayAssignment.REST,
+            restNote = restNoteFor(showing, schedule, today),
+            usualDay = usualDay,
+            todayOnly = todayOnly,
         )
     }
 
     suspend fun editorSeed(slotId: String): TodaySlot {
-        return home(definitions().first { it.id == slotId }.day).slots.first { it.id == slotId }
+        val day = definitions().first { it.id == slotId }.day
+        return buildHome(day, clock(), day, false).slots.first { it.id == slotId }
     }
 
     suspend fun saveDraft(slotId: String, sets: List<DraftSet>, pain: Int, note: String, posture: Boolean) {
@@ -161,7 +207,7 @@ class WorkoutRepository(
     fun decodeDraft(raw: String): List<DraftSetDto> = json.decodeFromString(raw)
 
     suspend fun finishDay(day: Char, durationMin: Int, readiness: Int?): FinishOutcome {
-        val today = LocalDate.now()
+        val today = clock()
         val outcome = db.withTransaction {
             finishInside(day, today, durationMin, readiness)
         }
@@ -368,7 +414,7 @@ class WorkoutRepository(
     }
 
     suspend fun submitCheckIn(soreness: Int, performance: Int, readiness: Int, skipChoice: Boolean?): CheckInOutcome {
-        val today = LocalDate.now()
+        val today = clock()
         return db.withTransaction {
             val program = requireProgram()
             val clock = program.toClock()
@@ -484,7 +530,7 @@ class WorkoutRepository(
     suspend fun logSwim(durationMin: Int, pool: Boolean, wrote: Boolean) {
         dao.insertSwim(
             SwimEntity(
-                epochDay = LocalDate.now().toEpochDay(),
+                epochDay = clock().toEpochDay(),
                 durationMin = durationMin,
                 pool = pool,
                 wroteHealthConnect = wrote,
@@ -573,36 +619,12 @@ class WorkoutRepository(
     }
 }
 
-private fun scheduledDay(date: LocalDate): Char {
-    return when (date.dayOfWeek) {
-        java.time.DayOfWeek.MONDAY -> 'A'
-        java.time.DayOfWeek.WEDNESDAY -> 'B'
-        java.time.DayOfWeek.FRIDAY -> 'C'
-        java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.THURSDAY -> 'S'
-        java.time.DayOfWeek.SATURDAY -> 'W'
-        java.time.DayOfWeek.SUNDAY -> 'R'
-    }
-}
-
-private fun dayTitle(day: Char): String {
-    return when (day) {
-        'A' -> "Day A · Squat, push, pull, carry"
-        'B' -> "Day B · Hinge, push, pull, carry"
-        'C' -> "Day C · Pause squat, hinge, pull"
-        'S' -> "Swim day"
-        'W' -> "Long easy walk"
-        'R' -> "Rest"
-        else -> "Day $day"
-    }
-}
-
-private fun restNote(day: Char): String? {
-    return when (day) {
-        'S' -> "Easy swim. Log the minutes if you want them in Health Connect. Strength is tomorrow."
-        'W' -> "Long easy walk. No lifting."
-        'R' -> "Rest. The next strength day is Monday, Day A."
-        else -> null
-    }
+private fun effectiveDay(settings: SettingsEntity, date: LocalDate): Char {
+    val schedule = WeekSchedule.decode(settings.weekSchedule)
+    val usual = schedule.on(date).code
+    if (settings.dayOverrideEpoch != date.toEpochDay()) return usual
+    val override = settings.dayOverride?.firstOrNull() ?: return usual
+    return if (override == 'A' || override == 'B' || override == 'C') override else usual
 }
 
 @Serializable

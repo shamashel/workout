@@ -140,6 +140,9 @@ data class SettingsEntity(
     val availableBarbell: String,
     val availableLat: String,
     val writeHealthConnect: Boolean,
+    val weekSchedule: String = YEAR1_WEEK,
+    val dayOverrideEpoch: Long? = null,
+    val dayOverride: String? = null,
 )
 
 @Serializable

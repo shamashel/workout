@@ -41,7 +41,9 @@ class ScreenShotTest {
             WorkoutTheme {
                 TodayScreen(
                     home = sampleHome(),
-                    onSelectDay = {},
+                    onUseDayToday = {},
+                    onClearTodayOverride = {},
+                    onStartFresh = {},
                     onOpenSlot = {},
                     onFinish = { _, _ -> },
                     onCheckIn = {},
@@ -52,7 +54,31 @@ class ScreenShotTest {
             }
         }
         compose.onNodeWithText("Goblet squat", substring = true).assertExists()
+        compose.onNodeWithText("Do a different day today").assertExists()
         save("today")
+    }
+
+    @Test
+    fun todayOverride() {
+        compose.setContent {
+            WorkoutTheme {
+                TodayScreen(
+                    home = sampleHome().copy(todayOnly = true, usualDay = 'B', headline = "Day A · Squat, push, pull, carry"),
+                    onUseDayToday = {},
+                    onClearTodayOverride = {},
+                    onStartFresh = {},
+                    onOpenSlot = {},
+                    onFinish = { _, _ -> },
+                    onCheckIn = {},
+                    onStartWeights = {},
+                    onDismissSafety = {},
+                    onSwim = {},
+                )
+            }
+        }
+        compose.onNodeWithText("Use the usual day").assertExists()
+        compose.onNodeWithText("Your weekly schedule still says Day B", substring = true).assertExists()
+        save("today-override")
     }
 
     @Test
@@ -116,10 +142,14 @@ class ScreenShotTest {
                     onSwim = {},
                     onCheckIn = {},
                     onHealthPermission = {},
+                    onStartFresh = {},
                 )
             }
         }
-        compose.onNodeWithText("5 to 150 lb in 5 lb steps").assertExists()
+        compose.onNodeWithText("Weekly schedule").assertExists()
+        compose.onNodeWithText("Wednesday").assertExists()
+        save("settings-week")
+        compose.onNodeWithText("5 to 150 lb in 5 lb steps").performScrollTo().assertExists()
         compose.onNodeWithText("45 lb bar, 5 lb jumps, up to 545 lb").assertExists()
         save("settings")
         compose.onNodeWithText("Allow Health Connect").performScrollTo()

@@ -45,7 +45,6 @@ class WorkoutViewModel(
     private val settingsMutex = Mutex()
     private var settingsGeneration = 0
     var home by mutableStateOf<HomeSnapshot?>(null)
-    var selectedDay by mutableStateOf<Char?>(null)
     var editor by mutableStateOf<EditorUi?>(null)
     var summary by mutableStateOf<FinishOutcome?>(null)
     var history by mutableStateOf<HistorySnapshot?>(null)
@@ -71,15 +70,40 @@ class WorkoutViewModel(
 
     private suspend fun loadHome() {
         repository.bootstrap()
-        home = repository.home(selectedDay)
+        home = repository.home()
         settings = repository.settingsEntity()
         healthStatus = health.availability()
         healthGranted = health.hasWritePermission()
     }
 
-    fun selectDay(day: Char) {
-        selectedDay = day
-        refresh()
+    fun useDayToday(day: Char) {
+        viewModelScope.launch {
+            settingsMutex.withLock {
+                repository.useDayToday(day)
+                loadHome()
+            }
+        }
+    }
+
+    fun clearTodayOverride() {
+        viewModelScope.launch {
+            settingsMutex.withLock {
+                repository.clearTodayOverride()
+                loadHome()
+            }
+        }
+    }
+
+    fun startFreshFromToday() {
+        val generation = ++settingsGeneration
+        viewModelScope.launch {
+            settingsMutex.withLock {
+                if (generation != settingsGeneration) return@withLock
+                repository.startFreshFromToday()
+                loadHome()
+                message = "Today is Day A. The rest of the week follows the usual pattern."
+            }
+        }
     }
 
     fun acknowledgeSafety() {
@@ -214,7 +238,7 @@ class WorkoutViewModel(
             settingsMutex.withLock {
                 repository.saveSettings(entity)
                 if (generation != settingsGeneration) return@withLock
-                home = repository.home(selectedDay)
+                home = repository.home()
                 if (note != null) message = note
             }
         }
