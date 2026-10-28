@@ -237,6 +237,9 @@ data class SettingsDraft(
     val latIncrement: Double,
     val allowSkipDeload: Boolean,
     val writeHealthConnect: Boolean,
+    val weekSchedule: String = YEAR1_WEEK,
+    val dayOverrideEpoch: Long? = null,
+    val dayOverride: String? = null,
 ) {
     fun toSettings(): SettingsEntity {
         return SettingsEntity(
@@ -249,6 +252,9 @@ data class SettingsDraft(
             availableBarbell = encodeWeights(bar.weights()),
             availableLat = encodeWeights(lat.weights()),
             writeHealthConnect = writeHealthConnect,
+            weekSchedule = weekSchedule,
+            dayOverrideEpoch = dayOverrideEpoch,
+            dayOverride = dayOverride,
         )
     }
 
@@ -298,6 +304,9 @@ fun SettingsEntity.toDraft(): SettingsDraft {
         latIncrement = latIncrement,
         allowSkipDeload = allowSkipDeload,
         writeHealthConnect = writeHealthConnect,
+        weekSchedule = weekSchedule,
+        dayOverrideEpoch = dayOverrideEpoch,
+        dayOverride = dayOverride,
     )
 }
 

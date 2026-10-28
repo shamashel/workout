@@ -203,7 +203,7 @@ class BackupRoundTripTest {
         val database = WorkoutDatabase.create(context, "backup-signal.db")
         var calls = 0
         try {
-            val repository = WorkoutRepository(database) { calls += 1 }
+            val repository = WorkoutRepository(database, onDataChanged = { calls += 1 })
             repository.bootstrap()
             assertEquals(0, calls)
             repository.saveSettings(repository.settingsEntity().copy(allowSkipDeload = true))
@@ -246,7 +246,7 @@ class BackupRoundTripTest {
                 assertEquals(0, it.getInt(0))
                 assertEquals(0, it.getInt(1))
             }
-            assertEquals(1, database.openHelper.writableDatabase.version)
+            assertEquals(2, database.openHelper.writableDatabase.version)
         } finally {
             database.close()
         }

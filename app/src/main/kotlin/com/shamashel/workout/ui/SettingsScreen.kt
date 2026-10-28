@@ -50,12 +50,19 @@ import com.shamashel.workout.data.RangeKit
 import com.shamashel.workout.data.SAFETY_LINE
 import com.shamashel.workout.data.SettingsDraft
 import com.shamashel.workout.data.SettingsEntity
+import com.shamashel.workout.data.START_FRESH_BODY
+import com.shamashel.workout.data.WeekSchedule
+import com.shamashel.workout.data.WeekdayAssignment
+import com.shamashel.workout.data.YEAR1_WEEK
 import com.shamashel.workout.data.backupFileName
 import com.shamashel.workout.data.lbPhrase
 import com.shamashel.workout.data.plainLb
 import com.shamashel.workout.data.previewBackup
 import com.shamashel.workout.data.restoreSummary
 import com.shamashel.workout.data.toDraft
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import com.shamashel.workout.health.HealthAvailability
 import com.shamashel.workout.health.HealthWriter
 import kotlinx.coroutines.launch
@@ -78,6 +85,7 @@ fun SettingsScreen(
     onSwim: () -> Unit,
     onCheckIn: () -> Unit,
     onHealthPermission: (Boolean) -> Unit,
+    onStartFresh: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -92,6 +100,7 @@ fun SettingsScreen(
         onHealthPermission(granted.contains(health.writePermission()))
     }
     var pendingRestore by remember { mutableStateOf<PendingRestore?>(null) }
+    var askFresh by remember { mutableStateOf(false) }
     // CreateDocument is ACTION_CREATE_DOCUMENT. OpenDocument is ACTION_OPEN_DOCUMENT.
     // Drive sometimes labels a JSON file as text/plain or application/octet-stream.
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -127,6 +136,20 @@ fun SettingsScreen(
             }
         }
     }
+    if (askFresh) {
+        AlertDialog(
+            onDismissRequest = { askFresh = false },
+            title = { Text("Start fresh from Day A today") },
+            text = { Text(START_FRESH_BODY) },
+            confirmButton = {
+                Button(onClick = {
+                    askFresh = false
+                    onStartFresh()
+                }) { Text("Start today") }
+            },
+            dismissButton = { TextButton(onClick = { askFresh = false }) { Text("Cancel") } },
+        )
+    }
     pendingRestore?.let { pending ->
         AlertDialog(
             onDismissRequest = { pendingRestore = null },
@@ -156,6 +179,24 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        SectionCard(
+            title = "Weekly schedule",
+            helper = "Pick the lifting day for each weekday. Rest is a day off. The usual week is A, rest, B, rest, C, then two rest days. A change here is the new normal, and sessions already logged keep their day.",
+            onReset = {
+                commit(
+                    draft.copy(weekSchedule = YEAR1_WEEK, dayOverrideEpoch = null, dayOverride = null),
+                    "Weekly schedule reset.",
+                )
+            },
+        ) {
+            val schedule = WeekSchedule.decode(draft.weekSchedule)
+            DayOfWeek.entries.forEach { weekday ->
+                WeekdayRow(weekday, schedule.on(weekday)) { assignment ->
+                    commit(draft.copy(weekSchedule = schedule.with(weekday, assignment).encode()))
+                }
+            }
+            TextButton(onClick = { askFresh = true }) { Text("Start fresh from Day A today") }
+        }
         SectionCard(
             title = "Equipment",
             helper = "What you can actually load. The plan only suggests weights from these.",
@@ -314,6 +355,29 @@ fun SettingsScreen(
             TextButton(onClick = onCheckIn) { Text("Weekly check-in") }
             TextButton(onClick = onSwim) { Text("Log a swim") }
             TextButton(onClick = onYears) { Text("Year notes") }
+        }
+    }
+}
+
+@Composable
+private fun WeekdayRow(
+    weekday: DayOfWeek,
+    current: WeekdayAssignment,
+    onSelect: (WeekdayAssignment) -> Unit,
+) {
+    val options = WeekdayAssignment.entries
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(weekday.getDisplayName(TextStyle.FULL, Locale.US), fontWeight = FontWeight.Medium)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, assignment ->
+                SegmentedButton(
+                    selected = assignment == current,
+                    onClick = { onSelect(assignment) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                ) {
+                    Text(assignment.chip)
+                }
+            }
         }
     }
 }

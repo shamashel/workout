@@ -29,12 +29,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.shamashel.workout.data.HomeSnapshot
 import com.shamashel.workout.data.SAFETY_LINE
+import com.shamashel.workout.data.START_FRESH_BODY
 import com.shamashel.workout.data.TodaySlot
+import com.shamashel.workout.data.WeekdayAssignment
 
 @Composable
 fun TodayScreen(
     home: HomeSnapshot,
-    onSelectDay: (Char) -> Unit,
+    onUseDayToday: (Char) -> Unit,
+    onClearTodayOverride: () -> Unit,
+    onStartFresh: () -> Unit,
     onOpenSlot: (String) -> Unit,
     onFinish: (minutes: Int, readiness: Int?) -> Unit,
     onCheckIn: () -> Unit,
@@ -44,12 +48,52 @@ fun TodayScreen(
     modifier: Modifier = Modifier,
 ) {
     var askFinish by rememberSaveable { mutableStateOf(false) }
+    var askDay by rememberSaveable { mutableStateOf(false) }
+    var askFresh by rememberSaveable { mutableStateOf(false) }
     if (home.showSafety) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text("Before you add weight") },
             text = { Text(SAFETY_LINE) },
             confirmButton = { TextButton(onClick = onDismissSafety) { Text("I understand") } },
+        )
+    }
+    if (askDay) {
+        AlertDialog(
+            onDismissRequest = { askDay = false },
+            title = { Text("Do a different day today") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Only today changes. The weekly schedule stays as it is, and sessions already saved keep their day.")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf('A', 'B', 'C').forEach { day ->
+                            FilterChip(
+                                selected = home.day == day && !home.isRestDay,
+                                onClick = {
+                                    askDay = false
+                                    onUseDayToday(day)
+                                },
+                                label = { Text("Day $day") },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { askDay = false }) { Text("Cancel") } },
+        )
+    }
+    if (askFresh) {
+        AlertDialog(
+            onDismissRequest = { askFresh = false },
+            title = { Text("Start fresh from Day A today") },
+            text = { Text(START_FRESH_BODY) },
+            confirmButton = {
+                Button(onClick = {
+                    askFresh = false
+                    onStartFresh()
+                }) { Text("Start today") }
+            },
+            dismissButton = { TextButton(onClick = { askFresh = false }) { Text("Cancel") } },
         )
     }
     if (askFinish) {
@@ -72,16 +116,18 @@ fun TodayScreen(
             Text(home.weekLabel, style = MaterialTheme.typography.bodyMedium)
             Text(home.rirNote, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
         }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf('A', 'B', 'C').forEach { day ->
-                    FilterChip(
-                        selected = home.day == day,
-                        onClick = { onSelectDay(day) },
-                        label = { Text("Day $day") },
-                    )
-                }
+        if (home.todayOnly) {
+            item {
+                val usual = WeekdayAssignment.fromCode(home.usualDay)?.spoken ?: "Rest"
+                Text("Just for today. Your weekly schedule still says $usual.")
+                TextButton(onClick = onClearTodayOverride) { Text("Use the usual day") }
             }
+        }
+        item {
+            OutlinedButton(onClick = { askDay = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Do a different day today")
+            }
+            TextButton(onClick = { askFresh = true }) { Text("Start fresh from Day A today") }
         }
         home.deloadBanner?.let { banner ->
             item {
@@ -93,7 +139,7 @@ fun TodayScreen(
         home.restNote?.let { note ->
             item { Text(note, style = MaterialTheme.typography.bodyLarge) }
         }
-        if (home.day == 'S') {
+        if (home.isRestDay) {
             item { Button(onClick = onSwim) { Text("Log a swim") } }
         }
         if (home.needsWeights && home.day in listOf('A', 'B', 'C')) {

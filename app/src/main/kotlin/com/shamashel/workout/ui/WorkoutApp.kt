@@ -76,7 +76,9 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                 } else {
                     TodayScreen(
                         home = home,
-                        onSelectDay = viewModel::selectDay,
+                        onUseDayToday = viewModel::useDayToday,
+                        onClearTodayOverride = viewModel::clearTodayOverride,
+                        onStartFresh = viewModel::startFreshFromToday,
                         onOpenSlot = { id ->
                             viewModel.openSlot(id)
                             nav.navigate("log/$id")
@@ -148,6 +150,7 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                         onSwim = { nav.navigate("swim") },
                         onCheckIn = { nav.navigate("checkin") },
                         onHealthPermission = viewModel::onHealthPermission,
+                        onStartFresh = viewModel::startFreshFromToday,
                     )
                 }
             }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -21,7 +23,7 @@ import androidx.room.RoomDatabase
         PhaseNoteEntity::class,
         SlotOverrideEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class WorkoutDatabase : RoomDatabase() {
@@ -41,7 +43,17 @@ abstract class WorkoutDatabase : RoomDatabase() {
         const val FILE_NAME = "workout.db"
 
         fun create(context: Context, name: String = FILE_NAME): WorkoutDatabase {
-            return Room.databaseBuilder(context, WorkoutDatabase::class.java, name).build()
+            return Room.databaseBuilder(context, WorkoutDatabase::class.java, name)
+                .addMigrations(MIGRATION_1_2)
+                .build()
         }
+    }
+}
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE settings ADD COLUMN weekSchedule TEXT NOT NULL DEFAULT '$YEAR1_WEEK'")
+        db.execSQL("ALTER TABLE settings ADD COLUMN dayOverrideEpoch INTEGER")
+        db.execSQL("ALTER TABLE settings ADD COLUMN dayOverride TEXT")
     }
 }

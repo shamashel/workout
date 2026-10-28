@@ -115,6 +115,16 @@ Health Connect writes an exercise session only: start, end, and type (strength, 
 
 The safety line, shown on first launch and in settings, is exactly: “Not medical advice. Check with your doctor before ramping up.”
 
+## Weekly schedule
+
+The plan's Year 1 week is Monday Day A, Tuesday swim, Wednesday Day B, Thursday swim, Friday Day C, Saturday a long walk, and Sunday rest. The schedule setting stores a lifting day or rest for each weekday. Swim and the walk are rest on that schedule. A swim is still logged from a rest day or from Settings. The stored default is `ARBRCRR`.
+
+A today-only override stores the date and Day A, B, or C. It does not change the weekly schedule. It applies only on that date, including when the next date is in a new year. Undo clears it.
+
+Start fresh rotates that Year 1 pattern so today is Day A and the following weekdays take the next slots: rest, Day B, rest, Day C, rest, rest, wrapping past Sunday. It replaces the weekly schedule and clears a today-only override. It does not rewrite sessions, slot state, deload counters, or the block clock.
+
+Room schema is version 2. Migration 1 to 2 adds `weekSchedule`, `dayOverrideEpoch`, and `dayOverride` on `settings`. There is no destructive fallback. The JSON backup stays version 1. The new settings fields have defaults, so a file written by v0.1.2 still imports.
+
 ## Settings equipment
 
 The settings screen edits dumbbells as a lightest weight, a heaviest weight, and a step, plus individual bells added or removed. The barbell is a bar, the plates on hand, and a heaviest load. The lat stack is a lightest weight, a heaviest weight, and a step. What gets stored, and what the engine reads, is still the expanded list of loads. The default bar (45 lb, plates 45 / 25 / 10 / 5 / 2.5, up to 545) is the same 5 lb grid as before, so a 10% cut from 135 still lands on 120. A saved list that is not a plate combination is kept as-is until the lifter chooses plates.

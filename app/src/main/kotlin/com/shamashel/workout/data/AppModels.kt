@@ -31,6 +31,8 @@ data class HomeSnapshot(
     val week0Passes: Int,
     val isRestDay: Boolean,
     val restNote: String?,
+    val usualDay: Char = 'A',
+    val todayOnly: Boolean = false,
 )
 
 data class DraftSet(

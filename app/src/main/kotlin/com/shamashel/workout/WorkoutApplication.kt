@@ -19,7 +19,7 @@ class WorkoutApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         database = WorkoutDatabase.create(this)
-        repository = WorkoutRepository(database) { BackupManager(this).dataChanged() }
+        repository = WorkoutRepository(database, onDataChanged = { BackupManager(this).dataChanged() })
         health = HealthWriter(this)
     }
 }
