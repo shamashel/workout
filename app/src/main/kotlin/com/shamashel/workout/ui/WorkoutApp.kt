@@ -119,6 +119,14 @@ fun WorkoutApp(viewModel: WorkoutViewModel) {
                         outcome = outcome,
                         onOverride = viewModel::override,
                         onSubstitute = viewModel::substitute,
+                        onHistory = {
+                            viewModel.openHistory()
+                            nav.navigate("history")
+                        },
+                        onSettings = {
+                            viewModel.loadSettings()
+                            nav.navigate("settings")
+                        },
                         onDone = {
                             nav.popBackStack("today", inclusive = false)
                             if (viewModel.home?.checkInDue == true) nav.navigate("checkin")

@@ -235,7 +235,17 @@ class WorkoutRepository(
             val slot = slots.getValue(draft.slotId)
             val sets = decodeDraft(draft.setsJson).map { SetLog(it.reps, it.rir, it.weight) }
             val log = SessionLog(sets, draft.painFlag, if (slot.isCarry) draft.postureClean else null, draft.note)
+            val loggedWeight = sets.map { it.weight }.filter { it > 0.0 }.minOrNull()
+            val stored = states.getValue(slot.id)
+            if (stored.weight <= 0.0 && loggedWeight != null) {
+                val seeded = stored.copy(weight = loggedWeight)
+                states[slot.id] = seeded
+            }
             if (draft.painFlag >= 3) {
+                val held = states.getValue(slot.id)
+                if (stored.weight <= 0.0 && loggedWeight != null) {
+                    dao.saveState(held.toEntity())
+                }
                 val sessionId = dao.insertSession(
                     SessionEntity(
                         epochDay = today.toEpochDay(),
@@ -248,7 +258,7 @@ class WorkoutRepository(
                         decision = Decision.NO_COACHING.name,
                         reason = com.shamashel.workout.engine.MEDICAL_STOP_MESSAGE,
                         loadIncreased = false,
-                        performedWeight = sets.minOfOrNull { it.weight } ?: 0.0,
+                        performedWeight = loggedWeight ?: held.weight,
                     ),
                 )
                 dao.insertSets(sets.mapIndexed { index, set -> set.toEntity(sessionId, index + 1) })
@@ -297,7 +307,7 @@ class WorkoutRepository(
                     decision = result.decision.name,
                     reason = result.reason,
                     loadIncreased = result.loadIncreased,
-                    performedWeight = sets.minOfOrNull { it.weight } ?: states.getValue(slot.id).weight,
+                    performedWeight = loggedWeight ?: states.getValue(slot.id).weight,
                 ),
             )
             dao.insertSets(sets.mapIndexed { index, set -> set.toEntity(sessionId, index + 1) })

@@ -4,6 +4,8 @@ A private, one-person workout log. It stores strength sessions on the phone, sug
 
 Year 1 (Day A / B / C, slots A1–C5) is the plan the app runs. Later years are notes you can edit. The progression rules live in the `engine` module, which is plain Kotlin with no Android dependencies. Ambiguous spots in the plan are recorded in [DECISIONS.md](DECISIONS.md).
 
+Open a slot, enter the sets, and tap **Save set data**. That stores the numbers but does not put the workout in History. Back on Today the slot says **Logged, not finished**. Tap **Finish workout** even if starting weights are still unset. The lightest weight you logged becomes that slot's starting weight. The confirmation says the workout is saved on this phone, whether Health Connect is off, written, or skipped, and that automatic backup is scheduled.
+
 The usual week is Monday Day A, Wednesday Day B, and Friday Day C. The other days are rest. Settings → Weekly schedule changes that. On Today, **Do a different day today** picks Day A, B, or C for today only, and **Use the usual day** undoes it. **Start fresh from Day A today** rotates the usual week so today is Day A and the following days keep that pattern. Sessions already logged keep the day they were saved with.
 
 ## Requirements

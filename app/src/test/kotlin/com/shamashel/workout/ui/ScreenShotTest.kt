@@ -54,7 +54,9 @@ class ScreenShotTest {
             }
         }
         compose.onNodeWithText("Goblet squat", substring = true).assertExists()
-        compose.onNodeWithText("Do a different day today").assertExists()
+        compose.onNodeWithText("Logged, not finished").assertExists()
+        compose.onNodeWithText("1 of 5 slots logged. Tap Finish workout to save it to History.").assertExists()
+        compose.onNodeWithText("Finish workout").assertExists()
         save("today")
     }
 
@@ -89,10 +91,16 @@ class ScreenShotTest {
                     outcome = sampleSummary(),
                     onOverride = { _, _, _ -> },
                     onSubstitute = { _, _ -> },
+                    onHistory = {},
+                    onSettings = {},
                     onDone = {},
                 )
             }
         }
+        compose.onNodeWithText("Workout saved on this phone").assertExists()
+        compose.onNodeWithText("Health Connect is off.").assertExists()
+        compose.onNodeWithText("Open History").assertExists()
+        compose.onNodeWithText("Automatic backup is scheduled.", substring = true).assertExists()
         compose.onNodeWithText("All sets at 12 and avg RIR 2.3 ≥ 2, so +5 lb", substring = true).assertExists()
         save("summary")
     }

@@ -93,7 +93,9 @@ Reps are seconds. Load increases only when every set is at the top time, posture
 
 ## Week 0 and history
 
-Week 0 practice passes are counted (capped at 2) and are not fed to the engine. Starting weights are entered by hand; a weight of 0 means unset.
+Week 0 practice passes are counted (capped at 2) and are not fed to the engine. They are a counter, not a session, and they are not written to History. Starting weights can still be entered by hand. A weight of 0 means unset.
+
+Saving set data writes a draft only. The session, its sets, and the progression update are written when the day is finished. Finish stays available while any slot has a draft, including when starting weights are still 0. If the stored weight is 0, the lightest weight actually logged in that draft is copied onto the slot before the engine runs, and that same number is the session's performed weight. The engine then progresses from that baseline. The Room schema stays version 2, so an upgrade does not rebuild or drop the drafts table.
 
 History “estimated reps” is the hardest set’s reps plus its RIR (a stand-in for reps to failure), plotted with the performed weight, a deload marker, and the pain flag.
 

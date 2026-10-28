@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.shamashel.workout.data.FinishOutcome
+import com.shamashel.workout.data.HealthSaveStatus
 import com.shamashel.workout.data.SummaryRow
 
 @Composable
@@ -32,6 +33,8 @@ fun SummaryScreen(
     outcome: FinishOutcome,
     onOverride: (slotId: String, weight: Double, reps: List<Int>) -> Unit,
     onSubstitute: (slotId: String, name: String) -> Unit,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,6 +47,7 @@ fun SummaryScreen(
         ) {
             Text("Stop", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.error)
             Text(outcome.medicalMessage, style = MaterialTheme.typography.bodyLarge)
+            SavedBanner(outcome, onHistory, onSettings)
             Button(onClick = onDone) { Text("Close") }
         }
         return
@@ -54,14 +58,35 @@ fun SummaryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("Next session", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            SavedBanner(outcome, onHistory, onSettings)
+            Text("Next session", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
             outcome.deloadBanner?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
-            outcome.healthNote?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         items(outcome.rows, key = { it.slotId }) { row ->
             SuggestionCard(row, onOverride, onSubstitute)
         }
         item { Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Done") } }
+    }
+}
+
+@Composable
+private fun SavedBanner(
+    outcome: FinishOutcome,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val status = when (outcome.healthStatus) {
+        HealthSaveStatus.OFF -> "Health Connect is off."
+        HealthSaveStatus.WRITTEN -> "Health Connect: written."
+        HealthSaveStatus.SKIPPED -> "Health Connect was skipped."
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Workout saved on this phone", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+        Text("Automatic backup is scheduled. The phone copies it when it is idle, charging, and on Wi-Fi.")
+        Text(status, fontWeight = FontWeight.Medium)
+        outcome.healthNote?.let { Text(it) }
+        Button(onClick = onHistory, modifier = Modifier.fillMaxWidth()) { Text("Open History") }
+        TextButton(onClick = onSettings) { Text("Health Connect settings") }
     }
 }
 
