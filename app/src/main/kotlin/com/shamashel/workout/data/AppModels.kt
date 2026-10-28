@@ -54,11 +54,24 @@ data class SummaryRow(
     val coaching: Boolean,
 )
 
+enum class HealthSaveStatus {
+    OFF,
+    WRITTEN,
+    SKIPPED,
+}
+
+fun healthSaveStatus(writingEnabled: Boolean, writeError: String?): HealthSaveStatus = when {
+    !writingEnabled -> HealthSaveStatus.OFF
+    writeError == null -> HealthSaveStatus.WRITTEN
+    else -> HealthSaveStatus.SKIPPED
+}
+
 data class FinishOutcome(
     val rows: List<SummaryRow>,
     val medicalMessage: String?,
     val deloadBanner: String?,
     val healthNote: String?,
+    val healthStatus: HealthSaveStatus = HealthSaveStatus.OFF,
 )
 
 data class HistoryPoint(

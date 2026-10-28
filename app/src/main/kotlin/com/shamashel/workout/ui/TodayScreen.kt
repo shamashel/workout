@@ -146,27 +146,31 @@ fun TodayScreen(
             item {
                 Card {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Set starting weights before the first real week.", fontWeight = FontWeight.Medium)
-                        Text("Week 0 practice passes recorded: ${home.week0Passes} of 2. Those passes are not used for progression.")
-                        Button(onClick = onStartWeights) { Text("Find starting weights") }
+                        Text("Week 0 is optional.", fontWeight = FontWeight.Medium)
+                        Text("Find starting weights only sets the numbers Week 1 begins from. It is not how a workout gets saved.")
+                        Text("Practice-pass counter: ${home.week0Passes} of 2. Those two easy tryouts are not a logged workout and are not saved to History.")
+                        OutlinedButton(onClick = onStartWeights) { Text("Find starting weights") }
                     }
+                }
+            }
+        }
+        if (home.day in listOf('A', 'B', 'C')) {
+            val logged = home.slots.count { it.drafted && !it.loggedToday }
+            item {
+                if (logged > 0) {
+                    Text("$logged of ${home.slots.size} slots logged. Tap Finish workout to save it to History.")
+                }
+                Button(
+                    onClick = { askFinish = true },
+                    enabled = logged > 0,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (logged == 0) "Log a slot to finish" else "Finish workout")
                 }
             }
         }
         items(home.slots, key = { it.id }) { slot ->
             SlotCard(slot, onOpen = { onOpenSlot(slot.id) })
-        }
-        if (home.day in listOf('A', 'B', 'C') && !home.needsWeights) {
-            item {
-                val ready = home.slots.count { it.drafted && !it.loggedToday }
-                Button(
-                    onClick = { askFinish = true },
-                    enabled = ready > 0,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (ready == 0) "Log a slot to finish" else "Finish session ($ready ready)")
-                }
-            }
         }
         if (home.checkInDue) {
             item {
@@ -187,7 +191,7 @@ private fun SlotCard(slot: TodaySlot, onOpen: () -> Unit) {
                 Text(
                     when {
                         slot.loggedToday -> "Logged"
-                        slot.drafted -> "Ready"
+                        slot.drafted -> "Logged, not finished"
                         slot.optional -> "Optional"
                         else -> "Log"
                     },
@@ -208,7 +212,7 @@ private fun FinishDialog(onDismiss: () -> Unit, onConfirm: (Int, Int?) -> Unit) 
     var readiness by rememberSaveable { mutableStateOf(3) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Finish this session") },
+        title = { Text("Finish workout") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Minutes")

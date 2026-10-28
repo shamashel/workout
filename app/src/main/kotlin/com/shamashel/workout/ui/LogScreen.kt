@@ -92,7 +92,7 @@ fun LogScreen(editor: EditorUi, onChange: (EditorUi) -> Unit, onSave: () -> Unit
             modifier = Modifier.fillMaxWidth(),
         )
         editor.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) { Text("Save slot") }
+        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) { Text("Save set data") }
     }
 }
 

@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shamashel.workout.data.CheckInOutcome
+import com.shamashel.workout.data.HealthSaveStatus
+import com.shamashel.workout.data.healthSaveStatus
 import com.shamashel.workout.data.DraftSet
 import com.shamashel.workout.data.FinishOutcome
 import com.shamashel.workout.data.HistorySnapshot
@@ -170,14 +172,27 @@ class WorkoutViewModel(
         viewModelScope.launch {
             busy = true
             val outcome = repository.finishDay(day, minutes.coerceAtLeast(1), readiness)
-            val healthNote = if (outcome.medicalMessage == null && repository.settingsEntity().writeHealthConnect) {
+            val writing = repository.settingsEntity().writeHealthConnect
+            val writeError = if (outcome.medicalMessage == null && writing) {
                 val end = Instant.now()
                 val start = end.minusSeconds(minutes.coerceAtLeast(1) * 60L)
                 health.writeStrength(start, end, "Day $day strength")
+            } else if (writing) {
+                "This session was stopped. Nothing was sent to Health Connect."
             } else {
                 null
             }
-            summary = outcome.copy(healthNote = healthNote)
+            val status = when {
+                !writing -> HealthSaveStatus.OFF
+                outcome.medicalMessage != null -> HealthSaveStatus.SKIPPED
+                else -> healthSaveStatus(writingEnabled = true, writeError = writeError)
+            }
+            val healthNote = when (status) {
+                HealthSaveStatus.OFF -> "Health Connect writing is off."
+                HealthSaveStatus.WRITTEN -> "Duration and exercise type were written to Health Connect. Sets and reps stay in this app."
+                HealthSaveStatus.SKIPPED -> writeError ?: "Health Connect was skipped. The workout stays in this app."
+            }
+            summary = outcome.copy(healthNote = healthNote, healthStatus = status)
             loadHome()
             busy = false
             onDone()

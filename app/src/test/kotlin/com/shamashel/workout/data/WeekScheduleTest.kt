@@ -210,10 +210,17 @@ class WeekPlanPersistenceTest {
                 ) VALUES (1, 0, 1, 5.0, 10.0, 17.0, '5,10', '45,135', '10,15', 0)
                 """.trimIndent(),
             )
+            db.execSQL(
+                """
+                INSERT INTO drafts (slotId, setsJson, painFlag, note, postureClean)
+                VALUES ('A1', '[{"weight":50.0,"reps":10,"rir":2}]', 0, 'kept across upgrade', 0)
+                """.trimIndent(),
+            )
             db.version = 1
         }
         val database = WorkoutDatabase.create(context, name)
         try {
+            assertEquals("kept across upgrade", database.dao().drafts().single().note)
             val settings = database.dao().settings()
             assertEquals(true, settings?.allowSkipDeload)
             assertEquals(17.0, settings?.latIncrement ?: 0.0, 0.001)
