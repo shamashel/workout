@@ -42,7 +42,7 @@ fun StartingWeightsScreen(
         Text("Week 0", style = MaterialTheme.typography.headlineMedium)
         Text("This screen only stores the weights Week 1 should start from. A workout you already logged on Today is saved with Finish workout, not here.")
         Text("The practice-pass counter is two easy tryouts, 2×10 at about RIR 5. It is not a logged workout and it is not saved to History. Practice-pass counter: $passes of 2.")
-        Text("Then find a weight where 10 reps feels like 3 RIR, and start Week 1 at the bottom of the rep range. If the first guess feels heavy, start lighter. Trap-bar: empty bar, add 10–20 lb until 8 reps feels like 3 RIR, then begin around 85–90% of that. Carries: a pair you can walk for 30 seconds with clean posture.")
+        Text("Then find a weight where 10 reps feels like 3 RIR, and start Week 1 at the bottom of the rep range. If the first guess feels heavy, start lighter. Trap-bar deadlift uses the low handles: start 10–20% lighter than a high-handle estimate. Empty bar, add 10–20 lb until 8 reps feels like 3 RIR, then begin Week 1 around 85–90% of that. Carries: a pair you can walk for 30 seconds with clean posture.")
         OutlinedButton(onClick = onPractice) { Text("Count a practice pass") }
         slots.forEach { slot ->
             OutlinedTextField(

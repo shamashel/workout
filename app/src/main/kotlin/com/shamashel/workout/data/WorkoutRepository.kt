@@ -46,12 +46,12 @@ class WorkoutRepository(
     private val dateFormat = DateTimeFormatter.ofPattern("MMM d", Locale.US)
 
     suspend fun bootstrap() {
-        if (dao.program() != null) return
-        val today = clock().toEpochDay()
-        db.withTransaction {
-            dao.saveSlots(Year1Plan.slots.map { it.toEntity() })
-            dao.saveStates(Year1Plan.slots.map { WorkoutEngine.initialState(it, 0.0).toEntity() })
-            dao.saveProgram(
+        if (dao.program() == null) {
+            val today = clock().toEpochDay()
+            db.withTransaction {
+                dao.saveSlots(Year1Plan.slots.map { it.toEntity() })
+                dao.saveStates(Year1Plan.slots.map { WorkoutEngine.initialState(it, 0.0).toEntity() })
+                dao.saveProgram(
                 ProgramEntity(
                     blockIndex = 1,
                     weekOfBlock = 1,
@@ -66,9 +66,66 @@ class WorkoutRepository(
                 ),
             )
             dao.saveSettings(EngineSettings().toEntity(writeHealthConnect = false))
-            Year1Plan.outlines.forEach { outline ->
+                Year1Plan.outlines.forEach { outline ->
+                    dao.savePhase(PhaseNoteEntity(outline.year, outline.title, outline.body))
+                }
+            }
+        }
+        ensureCurrentPlan()
+    }
+
+    /**
+     * Moves logs off slot ids whose exercise changed, then writes the current
+     * Year 1 definitions. Progression rows are left in place.
+     */
+    internal suspend fun ensureCurrentPlan() {
+        db.withTransaction {
+            remapLegacySlots()
+            for (plan in Year1Plan.slots) {
+                dao.saveSlots(listOf(plan.toEntity()))
+                if (dao.states().none { it.slotId == plan.id }) {
+                    dao.saveState(WorkoutEngine.initialState(plan, 0.0).toEntity())
+                }
+            }
+            val deadlift = dao.states().firstOrNull { it.slotId == "B1" }
+            if (deadlift != null && deadlift.exerciseName == "Trap-bar deadlift") {
+                dao.saveState(deadlift.copy(exerciseName = Year1Plan.slot("B1").name))
+            }
+            val year2 = dao.phases().firstOrNull { it.year == 2 }
+            val outline = Year1Plan.outlines.first { it.year == 2 }
+            if (year2 != null && year2.body.contains("step-up")) {
                 dao.savePhase(PhaseNoteEntity(outline.year, outline.title, outline.body))
             }
+        }
+    }
+
+    private suspend fun remapLegacySlots() {
+        val stepUp = dao.slot("C4")
+        if (stepUp != null && stepUp.kind == "STEP_UP" && dao.slot("C4s") == null) {
+            renameSlot("C4", "C4s")
+            dao.setSlotDay("C4s", "H")
+        }
+        val hold = dao.slot("C5")
+        if (hold != null && hold.kind == "DEEP_SQUAT_HOLD" && dao.slot("C4") == null) {
+            renameSlot("C5", "C4")
+        }
+        val plank = dao.slot("B5")
+        if (plank != null && plank.kind == "PLANK" && dao.slot("B6") == null) {
+            renameSlot("B5", "B6")
+        }
+    }
+
+    private suspend fun renameSlot(from: String, to: String) {
+        dao.renameSlotRow(from, to)
+        dao.renameState(from, to)
+        dao.renameDraft(from, to)
+        dao.renameSessions(from, to)
+        dao.renameOverrides(from, to)
+        dao.renameSlotOverride(from, to)
+        val program = dao.program() ?: return
+        val misses = remapSlotToken(program.secondMissSlots, from, to)
+        if (misses != program.secondMissSlots) {
+            dao.saveProgram(program.copy(secondMissSlots = misses))
         }
     }
 
@@ -596,6 +653,7 @@ class WorkoutRepository(
             bundle.slotOverrides.forEach { dao.saveSlotOverride(it) }
             bundle.drafts.forEach { dao.saveDraft(it) }
         }
+        ensureCurrentPlan()
     }
 
     private suspend fun definitions(): List<SlotDefinition> {
@@ -627,6 +685,13 @@ class WorkoutRepository(
             rir = rir,
         )
     }
+}
+
+private fun remapSlotToken(raw: String, from: String, to: String): String {
+    return raw.split(",")
+        .map { token -> if (token.trim() == from) to else token.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(",")
 }
 
 private fun effectiveDay(settings: SettingsEntity, date: LocalDate): Char {

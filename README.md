@@ -2,7 +2,7 @@
 
 A private, one-person workout log. It stores strength sessions on the phone, suggests the next weight, target reps, and target RIR after each session, and can write the session duration to Health Connect. There is no account, no cloud, and no analytics. The app does not request a network permission.
 
-Year 1 (Day A / B / C, slots A1–C5) is the plan the app runs. Later years are notes you can edit. The progression rules live in the `engine` module, which is plain Kotlin with no Android dependencies. Ambiguous spots in the plan are recorded in [DECISIONS.md](DECISIONS.md).
+Year 1 (Day A / B / C) is the plan the app runs. Wednesday adds a leg curl. Step-ups are not in the plan. The trap-bar deadlift uses the low handles. Later years are notes you can edit. The progression rules live in the `engine` module, which is plain Kotlin with no Android dependencies. Ambiguous spots in the plan are recorded in [DECISIONS.md](DECISIONS.md).
 
 Open a slot, enter the sets, and tap **Save set data**. That stores the numbers but does not put the workout in History. Back on Today the slot says **Logged, not finished**. Tap **Finish workout** even if starting weights are still unset. The lightest weight you logged becomes that slot's starting weight. The confirmation says the workout is saved on this phone, whether Health Connect is off, written, or skipped, and that automatic backup is scheduled.
 

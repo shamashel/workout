@@ -210,12 +210,12 @@ class RuleTest {
 
     @Test
     fun painFlag2_substituteEarlyDeloadAndATwoSessionBlock() {
-        val slot = Year1Plan.slot("C4")
+        val slot = Year1Plan.slot("A1")
         val state = WorkoutEngine.initialState(slot, 40.0)
         val first = run(
             slot,
             state,
-            log(40.0, 8, 3, 8, 3, pain = 2),
+            log(40.0, 8, 3, 8, 3, 8, 3, pain = 2),
             week = 1,
             date = day0,
         )
@@ -229,15 +229,15 @@ class RuleTest {
         val repeat = run(
             slot,
             first.state,
-            log(40.0, 8, 3, 8, 3, pain = 2),
+            log(40.0, 8, 3, 8, 3, 8, 3, pain = 2),
             week = 2,
             date = day0.plusDays(10),
             recentPain = listOf(day0),
         )
         assertTrue(repeat.prompts.any { it.kind == PromptKind.DOCTOR && it.message == DOCTOR_PROMPT })
 
-        val earned = WorkoutEngine.initialState(slot, 50.0).copy(loadBlockSessions = 1, targetReps = listOf(10, 10))
-        val blocked = run(slot, earned, log(50.0, 10, 3, 10, 3), week = 1)
+        val earned = WorkoutEngine.initialState(slot, 50.0).copy(loadBlockSessions = 1, targetReps = listOf(12, 12, 12))
+        val blocked = run(slot, earned, log(50.0, 12, 3, 12, 3, 12, 3), week = 1)
         assertEquals(Decision.PAIN_HOLD, blocked.decision)
         assertEquals(50.0, blocked.state.weight, 0.01)
         assertEquals(0, blocked.state.loadBlockSessions)
@@ -260,12 +260,12 @@ class RuleTest {
 
     @Test
     fun substitute_restartsAt85PercentRoundedDown() {
-        val slot = Year1Plan.slot("C4")
-        val state = WorkoutEngine.initialState(slot, 50.0).copy(targetReps = listOf(10, 10), missCount = 2)
+        val slot = Year1Plan.slot("A1")
+        val state = WorkoutEngine.initialState(slot, 50.0).copy(targetReps = listOf(10, 10, 10), missCount = 2)
         val next = WorkoutEngine.applySubstitute(slot, state, settings(), "DB split squat")
         assertEquals("DB split squat", next.exerciseName)
         assertEquals(40.0, next.weight, 0.01)
-        assertEquals(listOf(8, 8), next.targetReps)
+        assertEquals(listOf(8, 8, 8), next.targetReps)
         assertEquals(0, next.missCount)
         assertTrue(next.loadBlockSessions >= 2)
     }
@@ -308,7 +308,9 @@ class RuleTest {
             state = step.state
         }
         val third = run(slot, state, log(50.0, 12, 3, 12, 3, 12, 3), week = 1, settings = capped)
-        assertTrue(third.prompts.any { it.kind == PromptKind.GOBLET_CEILING && it.message.contains("split squat") })
+        assertTrue(third.prompts.any { it.kind == PromptKind.GOBLET_CEILING && it.message.contains("DB split squat") })
+        assertTrue(third.prompts.any { it.message.contains("DB box squat") })
+        assertTrue(third.prompts.none { it.message.contains("step-up") })
         assertEquals(50.0, third.state.weight, 0.01)
     }
 
@@ -407,6 +409,23 @@ class RuleTest {
     }
 
     @Test
+    fun legCurl_holdsUntil15ThenAddsOneStackStep() {
+        val slot = Year1Plan.slot("B5")
+        val climbing = run(slot, WorkoutEngine.initialState(slot, 20.0), log(20.0, 12, 3, 12, 3, 12, 3), week = 1)
+        assertEquals(Decision.IN_RANGE, climbing.decision)
+        assertEquals(20.0, climbing.state.weight, 0.01)
+
+        val atCap = run(slot, WorkoutEngine.initialState(slot, 20.0), log(20.0, 15, 3, 15, 3, 15, 3), week = 1)
+        assertEquals(Decision.EARNED_INCREASE, atCap.decision)
+        assertEquals(25.0, atCap.state.weight, 0.01)
+        assertEquals(listOf(10, 10, 10), atCap.state.targetReps)
+
+        val heavier = run(slot, WorkoutEngine.initialState(slot, 80.0), log(80.0, 15, 3, 15, 2, 15, 2), week = 1)
+        assertEquals(Decision.EARNED_INCREASE, heavier.decision)
+        assertEquals(85.0, heavier.state.weight, 0.01)
+    }
+
+    @Test
     fun year1Plan_hasTheLockedSlots() {
         assertEquals(15, Year1Plan.slots.size)
         val a1 = Year1Plan.slot("A1")
@@ -426,12 +445,27 @@ class RuleTest {
         assertEquals(45, a4.repHi)
         assertEquals(5, a4.repStep)
         val c4 = Year1Plan.slot("C4")
+        assertEquals("Deep-squat hold", c4.name)
         assertTrue(c4.isOptional)
-        assertEquals(2, c4.nSets)
-        assertEquals(8, c4.repLo)
-        assertEquals(10, c4.repHi)
-        val c5 = Year1Plan.slot("C5")
-        assertFalse(c5.tracksLoad)
+        assertFalse(c4.tracksLoad)
+        val b5 = Year1Plan.slot("B5")
+        assertEquals("Leg curl", b5.name)
+        assertEquals(10, b5.repLo)
+        assertEquals(15, b5.repHi)
+        assertEquals(3, b5.nSets)
+        assertEquals(SlotKind.LEG_CURL, b5.kind)
+        assertFalse(b5.isOptional)
+        val b6 = Year1Plan.slot("B6")
+        assertEquals("Plank", b6.name)
+        assertTrue(b6.isOptional)
+        assertFalse(b6.tracksLoad)
+        assertEquals("Dead bug", Year1Plan.slot("A5").name)
+        assertTrue(Year1Plan.slots.none { it.kind == SlotKind.STEP_UP })
+        assertTrue(Year1Plan.slots.none { it.id == "C5" || it.id == "A6" })
+        assertTrue(Year1Plan.slot("B1").name.contains("low handles"))
+        assertEquals(SlotKind.LAT_PULLDOWN, Year1Plan.slot("B3").kind)
+        assertEquals(SlotKind.BARBELL_RDL, Year1Plan.slot("C2").kind)
+        assertEquals(Equipment.BARBELL, Year1Plan.slot("C2").equipment)
         assertEquals(4, Year1Plan.outlines.size)
         val relocked = applySlotOverrides(Year1Plan.slots, listOf(SlotNumberOverride("A1", repLo = 6, repHi = 10, nSets = 4)))
         assertEquals(6, relocked.first { it.id == "A1" }.repLo)

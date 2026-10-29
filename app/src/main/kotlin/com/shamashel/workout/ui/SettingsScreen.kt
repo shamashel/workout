@@ -265,7 +265,7 @@ fun SettingsScreen(
                 onCheckedChange = { commit(draft.withMicro(it)) },
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            Text("Lat stack", fontWeight = FontWeight.SemiBold)
+            Text("Lat and leg-curl stack", fontWeight = FontWeight.SemiBold)
             Text(draft.lat.preview(), color = MaterialTheme.colorScheme.primary)
             LbStepper("Lightest", draft.lat.min, onMinus = {
                 commit(draft.copy(lat = draft.lat.withMin(draft.lat.min - draft.lat.step)))
@@ -293,7 +293,7 @@ fun SettingsScreen(
             JumpStepper("Barbell jump", draft.barIncrement, listOf(5.0, 10.0, 15.0)) {
                 commit(draft.copy(barIncrement = it))
             }
-            JumpStepper("Lat stack jump", draft.latIncrement, listOf(5.0, 10.0, 15.0)) {
+            JumpStepper("Stack jump", draft.latIncrement, listOf(5.0, 10.0, 15.0)) {
                 commit(draft.copy(latIncrement = it))
             }
         }

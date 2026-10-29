@@ -147,8 +147,8 @@ private fun ceilingHold(
         prompts += Prompt(
             PromptKind.GOBLET_CEILING,
             "Goblet squat is on the heaviest dumbbell you have, with every set at the top, for 3 sessions. " +
-                "Extend the top of the range to 15 if it is not there yet, then add 1 pause second or 1 tempo second, " +
-                "then switch this slot to a DB step-up or DB split squat.",
+                "Extend reps to 15, then add a tempo second or a pause second, " +
+                "then switch this slot to a DB split squat or a DB box squat.",
         )
     }
     val next = state.copy(
