@@ -22,6 +22,7 @@ enum class SlotKind {
     PLANK,
     PAUSE_GOBLET_SQUAT,
     BARBELL_RDL,
+    LEG_CURL,
     STEP_UP,
     DEEP_SQUAT_HOLD,
 }

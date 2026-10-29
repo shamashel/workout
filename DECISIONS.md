@@ -40,7 +40,7 @@ If the next increment is more than 10% of the current weight (exactly 10% is all
 - Three sessions with the same reps and the same weight show the recovery prompt and keep the weight. That prompt does **not** cancel an increase that was already earned at the top of the range. A too-easy bump is itself an increase, so the “weight stays” line is not shown on top of it.
 - The micro-plate prompt compares the **full** step (5 lb dumbbell, 10 lb bar or machine when micro-plates are on) against 5% of the weight. It appears only when micro-plates are on and the configured increment is smaller than that full step. The next earned increase then uses 2.5 lb (dumbbell) or 5 lb (bar).
 - Six working sessions with no heavier weight and no extra total reps prompt a swap and list the slot’s substitutes.
-- Goblet squat and pause-goblet squat, on the heaviest dumbbell you own, with every set at the top for three sessions, prompt the ceiling (extend toward 15, then a pause or tempo second, then a step-up or split squat). The app does not invent a heavier dumbbell and does not swap the exercise by itself.
+- Goblet squat and pause-goblet squat, on the heaviest dumbbell you own, with every set at the top for three sessions, prompt the ceiling: extend reps to 15, then add a tempo or pause second, then switch to a DB split squat or a DB box squat. The app does not invent a heavier dumbbell and does not swap the exercise by itself. Step-ups are not in the plan.
 
 ## Deload
 
@@ -85,8 +85,12 @@ Reps are seconds. Load increases only when every set is at the top time, posture
 
 ## Year 1 seeding
 
-- C4 (DB step-up) is seeded at **2** sets, the low end of “2–3”.
-- Optional bodyweight slots (A5, B5, C5) do not track load.
+- Leg curl is Wednesday only, slot B5, 3 × 10–15. It uses the lat-stack weights and the stack jump already in Settings (one step, default 5 lb). The rep range already tops out at 15, so reps climb inside 10–15 and a stack step is added once every set is at 15. That step is still only one stack increment, even when it is more than 10% of a light weight, because the plan does not extend past 15. The substitute is a stability-ball or slider hamstring curl.
+- Plank is B6. Dead bug stays A5. Deep-squat hold is C4. There is no A6 and no C5.
+- Optional bodyweight slots (A5, B6, C4) do not track load.
+- Trap-bar deadlift is the low-handle variation. Week 0 tells the lifter to start 10–20% lighter than a high-handle estimate, then use the same empty-bar ramp and the 85–90% Week 1 start.
+- Lat pulldown is B3 and the Friday hinge is a barbell Romanian deadlift. Both have been in the plan since the first release. The RDL uses the barbell increment: 10 lb, or 5 lb when micro-plates are on. Its RIR floor stays 2.
+- Existing logs keep their exercise when ids move. A step-up that was C4 becomes C4s and leaves the training week, so it is not the new deep-squat hold. A deep-squat hold that was C5 becomes C4. A plank that was B5 becomes B6. The new leg curl is a fresh B5. Dead-bug logs stay on A5. The Room schema stays version 2. The JSON backup stays version 1, and an older file still imports; the same remap runs after import.
 - Unilateral slots ask for the weaker side as one number.
 - Dead hangs are not a slot.
 - Only Year 1 progression runs. Years 2–4 are editable notes. Year 1 re-lock can change the name, rep range, and set count; a blank name keeps the current name. Changing those numbers does not wipe logs.

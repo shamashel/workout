@@ -22,6 +22,30 @@ interface WorkoutDao {
     @Query("SELECT * FROM slots ORDER BY day, sortOrder")
     suspend fun slots(): List<SlotEntity>
 
+    @Query("SELECT * FROM slots WHERE id = :id")
+    suspend fun slot(id: String): SlotEntity?
+
+    @Query("UPDATE slots SET id = :to WHERE id = :from")
+    suspend fun renameSlotRow(from: String, to: String)
+
+    @Query("UPDATE slots SET day = :day WHERE id = :id")
+    suspend fun setSlotDay(id: String, day: String)
+
+    @Query("UPDATE slot_state SET slotId = :to WHERE slotId = :from")
+    suspend fun renameState(from: String, to: String)
+
+    @Query("UPDATE drafts SET slotId = :to WHERE slotId = :from")
+    suspend fun renameDraft(from: String, to: String)
+
+    @Query("UPDATE sessions SET slotId = :to WHERE slotId = :from")
+    suspend fun renameSessions(from: String, to: String)
+
+    @Query("UPDATE overrides SET slotId = :to WHERE slotId = :from")
+    suspend fun renameOverrides(from: String, to: String)
+
+    @Query("UPDATE slot_overrides SET slotId = :to WHERE slotId = :from")
+    suspend fun renameSlotOverride(from: String, to: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSlots(entities: List<SlotEntity>)
 
